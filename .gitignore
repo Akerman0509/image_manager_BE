@@ -1,0 +1,11 @@
+
+migrations/
+__pycache__/
+
+.env
+
+my_stuff/
+
+*.pem
+
+
