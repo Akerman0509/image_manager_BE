@@ -2,6 +2,10 @@ import datetime
 import jwt
 from django.conf import settings
 import os
+from Crypto.Cipher import AES
+from base64 import b64encode,b64decode
+import json
+from Crypto.Util.Padding import pad,unpad
 
 class AuthenticationToken(object):
     def __init__(self, user_id:str , expired_at: int, email:str):
@@ -49,3 +53,31 @@ class AuthenticationToken(object):
     def is_token_expired(token):
         current_time = datetime.datetime.now()
         return current_time > token.expired_at
+
+
+class AESCipher:
+    def __init__(self, key: bytes):
+        self.key = key
+
+    
+    def encrypt(self, data: bytes) -> str:
+        cipher = AES.new(self.key, AES.MODE_CBC)
+        ct_bytes = cipher.encrypt(pad(data, AES.block_size))
+        iv = b64encode(cipher.iv).decode('utf-8')
+        ct = b64encode(ct_bytes).decode('utf-8')
+        result = json.dumps({'iv':iv, 'ciphertext':ct})
+        # print(result)
+        return result
+    
+    def decrypt(self, encrypted_data):
+        try:
+            b64 = json.loads(encrypted_data)
+            iv = b64decode(b64['iv'])
+            ct = b64decode(b64['ciphertext'])
+            cipher = AES.new(self.key, AES.MODE_CBC, iv) 
+            pt = unpad(cipher.decrypt(ct), AES.block_size)
+            # print("The message was: ", pt)
+        except (ValueError, KeyError):
+            print("Incorrect decryption")
+        
+        return pt

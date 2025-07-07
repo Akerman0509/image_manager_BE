@@ -6,6 +6,8 @@
 <p>Please log in using one of the following methods:</p>
 
 <!-- Link đăng nhập với Google -->
+{% csrf_token %}
+
 <a href="{% provider_login_url 'google' %}">Login with Google</a>
 
 <hr>

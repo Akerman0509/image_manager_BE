@@ -26,5 +26,24 @@ Content-Type: application/json
 
 
 ###
+
+POST {{baseUrl}}/token/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "phhoangquan@gmail.com"
+}
+###
 GET {{baseUrl}}/users/4/detail/ HTTP/1.1
 
+
+###
+
+POST {{baseUrl}}/get_images/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer <your_access_token>
+
+{
+    "username": "user1",
+    "password": "1111"
+}

@@ -168,12 +168,6 @@ AUTHENTICATION_BACKENDS = [
 ]
 SITE_ID = 2
 
-# SOCIALACCOUNT_PROVIDERS = {
-#   'google': {
-#       'EMAIL_AUTHENTICATION': True
-#   }
-# }
-
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': [
@@ -206,3 +200,8 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 # PASSWORD_HASHERS = [
 #     "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
 # ]
+
+AES_KEY= os.getenv("AES_KEY", "default_aes_key_123456")  # 32 bytes key for AES-256
+
+
+# AUTH_USER_MODEL = 'my_app.User'

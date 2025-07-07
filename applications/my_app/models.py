@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
 
 # Create your models here.
 
@@ -10,15 +12,46 @@ from django.db import models
 # CreatedAt
 # UpdatedAt
 
+class UserManager(models.Manager):
+    def create_gg_user(self, username, email):
+        return self.model.objects.create(
+            username=username,
+            email=email,
+            account_type=User.AccountType.GG_AUTH
+        )
+
 class User(models.Model):
+    
+    class AccountType(models.TextChoices):
+        NORMAL = 'normal', 'Normal'
+        GG_AUTH = 'gg_auth', 'gg_auth'
+        
+
     username = models.CharField(max_length=255)
     email = models.EmailField()
     password = models.CharField(max_length=255)  # Store hashed passwords
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
+    account_type = models.CharField(
+        max_length=20,
+        choices=AccountType.choices,
+        default=AccountType.NORMAL
+    )
+    
+    objects = UserManager()
     def __str__(self):
         return self.username
+    
+    
+class GGToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gg_tokens')
+    token = models.CharField(max_length=255, null=True, blank=True)  # Google Drive token
+    created_at = models.DateTimeField(auto_now_add=True)   
+    
+
+    def __str__(self):
+        return f"GG Token for {self.user.username} "
 
 # // Folder
 # Folder

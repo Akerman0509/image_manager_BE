@@ -1,7 +1,7 @@
 
 
 from rest_framework import serializers
-from .models import User, Image, Folder, FolderPermission
+from .models import User, Image, Folder, FolderPermission, GGToken
 from applications.commons.utils import hash_password
 
 
@@ -73,4 +73,17 @@ class UserSerializer(serializers.ModelSerializer):
             "email": instance.email,
             "created_at": instance.created_at,
             "updated_at": instance.updated_at
+        }
+        
+        
+class GGTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GGToken
+        fields = ['id', 'user', 'token']
+    
+    def to_representation(self, instance):
+        return {
+            "id": instance.id,
+            "user": instance.user.id,
+            "token": instance.token
         }

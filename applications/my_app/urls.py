@@ -16,7 +16,7 @@ urlpatterns = [
     
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('', auth_views.LoginView.as_view(template_name='dashboard.html'), name='dashboard'),
-    path('token/', views.list_google_drive_files, name='user_drive_files'),
+    # path('token/', views.api_login_with_gg, name='api_login_with_gg'),
     
     # /auth
     path('auth/register/', views.api_register, name='register'),

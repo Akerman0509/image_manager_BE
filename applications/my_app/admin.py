@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import User, Folder, Image, FolderPermission
+from .models import User, Folder, Image, FolderPermission, GGToken
 
 # Register your models here.
 
@@ -31,3 +31,9 @@ class ImageAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     ordering = ('-created_at',)
     list_filter = ('folder',)
+    
+@admin.register(GGToken)
+class GGTokenAdmin(admin.ModelAdmin):
+    list_display = ('user__username', 'token', 'created_at')
+    search_fields = ('user__username', 'token')
+    ordering = ('-created_at',)

@@ -2,7 +2,6 @@ from django.shortcuts import render
 # from rest_framework.response import Response
 import requests
 from rest_framework.decorators import api_view
-from allauth.socialaccount.models import SocialAccount, SocialToken
 from applications.my_app.serializers import RegisterSerializer, LoginSerializer, UserSerializer
 from applications.my_app.models import User
 from applications.commons.utils import check_password
@@ -10,30 +9,14 @@ from applications.my_app.token import AuthenticationToken
 from applications.my_app.decorator import auth_required
 from applications.commons.exception import APIWarningException
 from applications.commons.log_lib import APIResponse, trace_api
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+
 # Create your views here.
 
 
-def list_google_drive_files(request):
-    try:
-        # 1. Tìm Social Account của người dùng hiện tại cho provider 'google'
-        social_account = SocialAccount.objects.get(user=request.user, provider='google')
-        print (f"Social Account: {social_account}")
-        # 2. Từ Social Account, lấy token đang hoạt động
-        # Django-allauth tự động quản lý việc làm mới token khi cần
-        social_token = SocialToken.objects.get(account=social_account)
-        access_token = social_token.token
-        refresh_token = social_token.token_secret
-        return Response({
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'expires_at': social_token.expires_at
-        })
-        
-        
-    except SocialAccount.DoesNotExist:
-        # Xử lý trường hợp người dùng chưa kết nối tài khoản Google
-        return render(request, 'please_connect_google.html')
-    
+
+
     
 # /auth/register
 @api_view(['POST'])
