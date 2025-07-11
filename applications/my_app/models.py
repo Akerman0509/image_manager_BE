@@ -2,15 +2,6 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 
-# Create your models here.
-
-# // User
-# User
-# Name
-# Email
-# Password (hashed)
-# CreatedAt
-# UpdatedAt
 
 class UserManager(models.Manager):
     def create_gg_user(self, username, email):
@@ -53,14 +44,6 @@ class GGToken(models.Model):
     def __str__(self):
         return f"GG Token for {self.user.username} "
 
-# // Folder
-# Folder
-# ID
-# Name
-# ParentID (nullable, for root folders)
-# Owner_id (FK to User)
-# CreatedAt
-# UpdatedAt
 
 class Folder(models.Model):
     name = models.CharField(max_length=255)
@@ -72,22 +55,18 @@ class Folder(models.Model):
     def __str__(self):
         return self.name
 
-# // Image
-# Image
-# ID
-# Name
-# FolderID (nullable, for root images)
-# CreatedAt
-# UpdatedAt
 
 class Image(models.Model):
-    name = models.CharField(max_length=255)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='images/', null=True, blank=True)
+    image_name = models.CharField(max_length=255, null=True, blank=True)  
+    
     folder = models.ForeignKey(Folder, null=True, blank=True, on_delete=models.CASCADE, related_name='images')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.image.name} in {self.folder.name if self.folder else 'No Folder'}, uploaded by {self.user.username}"
 
 # //FolderPermission
 # ID
@@ -96,15 +75,15 @@ class Image(models.Model):
 # AllowWrite [user_id, user_id, ....]
 # AllowDelete [user_id, user_id, ....]
 
-class FolderPermission(models.Model):
-    folder = models.OneToOneField(Folder, on_delete=models.CASCADE, related_name='permission')
-    allow_read = models.ManyToManyField(User, related_name='read_permissions', blank=True)
-    allow_write = models.ManyToManyField(User, related_name='write_permissions', blank=True)
-    allow_delete = models.ManyToManyField(User, related_name='delete_permissions', blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+# class FolderPermission(models.Model):
+#     folder = models.OneToOneField(Folder, on_delete=models.CASCADE, related_name='permission')
+#     allow_read = models.ManyToManyField(User, related_name='read_permissions', blank=True)
+#     allow_write = models.ManyToManyField(User, related_name='write_permissions', blank=True)
+#     allow_delete = models.ManyToManyField(User, related_name='delete_permissions', blank=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Permissions for {self.folder.name}"
+#     def __str__(self):
+#         return f"Permissions for {self.folder.name}"
 
 
 # // DriveAccount
@@ -118,16 +97,14 @@ class FolderPermission(models.Model):
 
 # 1 User can have multiple DriveAccounts (e.g. for different Google accounts)
 
-# class DriveAccount(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drive_accounts')
-#     access_token = models.CharField(max_length=255)
-#     refresh_token = models.CharField(max_length=255)
-#     token_expire = models.DateTimeField()
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     drive_email = models.EmailField()
+class DriveAccount(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drive_accounts')
+    access_token = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    drive_email = models.EmailField()
 
-#     def __str__(self):
-#         return f"Drive Account for {self.user.name} ({self.drive_email})"
+    def __str__(self):
+        return f"Drive Account for {self.user.username} ({self.drive_email})"
 
 # # // DriveImage
 # # DriveImage

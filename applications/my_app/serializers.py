@@ -1,7 +1,7 @@
 
 
 from rest_framework import serializers
-from .models import User, Image, Folder, FolderPermission, GGToken
+from .models import User, Image, Folder, GGToken, Folder
 from applications.commons.utils import hash_password
 
 
@@ -45,20 +45,27 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
 
-class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+class LoginSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+        extra_kwargs = {'password': {'write_only': True}}
 
     def validate(self, data):
 
-        username = data.get('username')
-        if not username:
-            raise serializers.ValidationError("Username is required.")
+        email = data.get('email')
+        if not email:
+            raise serializers.ValidationError("email is required.")
         password = data.get('password')
         if not password:
             raise serializers.ValidationError("Password is required.")
-        
         return data
+        
+        
+
+        
 
     
 class UserSerializer(serializers.ModelSerializer):
@@ -87,3 +94,31 @@ class GGTokenSerializer(serializers.ModelSerializer):
             "user": instance.user.id,
             "token": instance.token
         }
+        
+class FolderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Folder
+        fields = ['id', 'name', 'parent', 'owner', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        return {
+            "id": instance.id,
+            "name": instance.name,
+            "parent": instance.parent.id if instance.parent else None,
+            "owner": instance.owner.id,
+            "created_at": instance.created_at,
+            "updated_at": instance.updated_at
+        }
+        
+# class FolderPermissionSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = FolderPermission
+#         fields = ['id', 'folder', 'user', 'created_at']
+    
+#     def to_representation(self, instance):
+#         return {
+#             "id": instance.id,
+#             "folder": instance.folder.id,
+#             "user": instance.user.id,
+#             "created_at": instance.created_at
+#         }

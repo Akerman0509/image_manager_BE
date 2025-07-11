@@ -15,6 +15,8 @@ from pathlib import Path
 import pymysql
 pymysql.install_as_MySQLdb()
 
+from corsheaders.defaults import default_headers, default_methods
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
@@ -33,6 +35,20 @@ ALLOWED_HOSTS = [
     '127.0.0.1'
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # frontend origin
+]
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "Authorization",
+]
+
+CORS_ALLOW_METHODS = list(default_methods) + [
+    "POST",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -45,6 +61,10 @@ INSTALLED_APPS = [
     # must have    
     'django.contrib.sites',
     # Thêm các app của allauth
+    'rest_framework.authtoken',
+    'dj_rest_auth.registration',    # ✅ for social login
+    
+        
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -151,7 +171,16 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+MEDIA_ROOT = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+STATICFILES_DIRS = (
+    # Thư mục chứa các file tĩnh của ứng dụng
+    os.path.join(BASE_DIR, "static"),
+)
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
