@@ -356,12 +356,14 @@ def api_home_page(request, user_id):
     folders = Folder.objects.filter(owner=user)
     # images = Image.objects.filter(user=user)
     
-    folders_ids = [folder.id for folder in folders]
+    # folders_ids = [folder.id for folder in folders]
     # images_ids = [image.id for image in images]
+    # take out folder id and folder_name
+    folder_dicts = [{'id': folder.id, 'name': folder.name} for folder in folders]
     
     context = {
         'user_id': user_id,
-        'folders': folders_ids
+        'folders': folder_dicts
     }
     
     return Response(context, status=200)
