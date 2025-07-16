@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import User, Folder, Image, GGToken, DriveAccount
+from .models import User, Folder, Image, GGToken, DriveAccount, FolderPermission
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 # Register your models here.
@@ -52,6 +52,15 @@ class ImageAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     list_filter = ('folder',)
     
+@admin.register(FolderPermission)
+class FolderPermissionAdmin(admin.ModelAdmin):
+    list_display = ('folder', 'created_at')
+    search_fields = ('folder__name',)
+    ordering = ('-created_at',)
+    
+    def folder(self, obj):
+        return obj.folder.name if obj.folder else "No Folder"
+    folder.short_description = "Folder Name"
     
 
 
@@ -73,3 +82,4 @@ class DriveAccountAdmin(admin.ModelAdmin):
     def drive_email(self, obj):
         return obj.user.email if obj.user else "No User"
     drive_email.short_description = "Drive Email"
+    

@@ -68,34 +68,17 @@ class Image(models.Model):
     def __str__(self):
         return f"{self.image.name} in {self.folder.name if self.folder else 'No Folder'}, uploaded by {self.user.username}"
 
-# //FolderPermission
-# ID
-# FolderID (OneToOne to Folder)
-# AllowRead [user_id, user_id, ....]
-# AllowWrite [user_id, user_id, ....]
-# AllowDelete [user_id, user_id, ....]
 
-# class FolderPermission(models.Model):
-#     folder = models.OneToOneField(Folder, on_delete=models.CASCADE, related_name='permission')
-#     allow_read = models.ManyToManyField(User, related_name='read_permissions', blank=True)
-#     allow_write = models.ManyToManyField(User, related_name='write_permissions', blank=True)
-#     allow_delete = models.ManyToManyField(User, related_name='delete_permissions', blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
+class FolderPermission(models.Model):
+    folder = models.OneToOneField(Folder, on_delete=models.CASCADE, related_name='permission')
+    allow_read = models.ManyToManyField(User, related_name='read_permissions', blank=True)
+    allow_write = models.ManyToManyField(User, related_name='write_permissions', blank=True)
+    allow_delete = models.ManyToManyField(User, related_name='delete_permissions', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-#     def __str__(self):
-#         return f"Permissions for {self.folder.name}"
+    def __str__(self):
+        return f"Permissions for {self.folder.name}"
 
-
-# // DriveAccount
-# DriveAccount
-# UserID (FK to User)
-# AccessToken
-# RefreshToken
-# token_expire
-# CreatedAt
-# drive_email
-
-# 1 User can have multiple DriveAccounts (e.g. for different Google accounts)
 
 class DriveAccount(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drive_accounts')
@@ -105,21 +88,3 @@ class DriveAccount(models.Model):
 
     def __str__(self):
         return f"Drive Account for {self.user.username} ({self.drive_email})"
-
-# # // DriveImage
-# # DriveImage
-# # img_id (FK to Image)
-
-# # drive_account_id (FK to DriveAccount)
-# # drive_file_id (Google Drive file ID)
-
-# # synced_at datetime
-
-# class DriveImage(models.Model):
-#     image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name='drive_images')
-#     drive_account = models.ForeignKey(DriveAccount, on_delete=models.CASCADE, related_name='drive_images')
-#     drive_file_id = models.CharField(max_length=255)
-#     synced_at = models.DateTimeField(auto_now=True)
-
-#     def __str__(self):
-#         return f"Drive Image {self.image.name} for {self.drive_account.drive_email}"

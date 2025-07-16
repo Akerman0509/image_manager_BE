@@ -3,7 +3,7 @@ from django.shortcuts import render
 import requests
 from rest_framework.decorators import api_view
 from applications.my_app.serializers import RegisterSerializer, LoginSerializer, UserSerializer, FolderSerializer
-from applications.my_app.models import User,DriveAccount, Image, Folder
+from applications.my_app.models import User,DriveAccount, Image, Folder, FolderPermission
 from applications.commons.utils import check_password
 from applications.my_app.token import AuthenticationToken
 from applications.my_app.decorator import auth_required
@@ -30,7 +30,6 @@ class GoogleLogin(SocialLoginView):
 # /auth/register
 @api_view(['POST'])
 def api_register(request):
-    
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -295,3 +294,74 @@ def api_get_images(request, user_id, folder_id):
     return Response({"images": image_list}, status=200)
 
 
+# {
+#     "allow_read": [],
+#     "allow_write": [],
+#     "allow_delete": [],
+# }
+@api_view(['POST'])
+def api_change_folder_permission(request):
+    
+    folder_id = request.data.get('folder_id')
+    user_id = request.data.get('user_id')
+    
+    # check if folder exists
+    folder = Folder.objects.filter(id=folder_id).first()
+    if not folder:
+        return Response({"error": "Folder not found"}, status=404)
+    # check if user exists and is owner of folder
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+    if folder.owner != user:
+        return Response({"error": "User is not the owner of the folder"}, status=403)
+    
+    folder_permission= FolderPermission.objects.get(folder=folder.id)
+    print("Folder permission:", folder_permission)
+    
+    # take out list
+    allow_read_email = request.data.get('allow_read', [])
+    allow_write_email = request.data.get('allow_write', [])
+    allow_delete_email = request.data.get('allow_delete', [])
+    
+    res = {
+        "message": "Folder permissions updated successfully",
+        "folder_id": folder.id
+    }
+    allow_read_users = User.objects.filter(email__in=allow_read_email)
+    allow_write_users = User.objects.filter(email__in=allow_write_email)
+    allow_delete_users = User.objects.filter(email__in=allow_delete_email)
+    folder_permission.allow_read.set(allow_read_users)  
+    folder_permission.allow_write.set(allow_write_users)
+    folder_permission.allow_delete.set(allow_delete_users)
+    # res.update({"allow_read": [user.email for user in allow_read_users]})
+    # res.update({"allow_write": [user.email for user in allow_write_users]})
+    # res.update({"allow_delete": [user.email for user in allow_delete_users]})
+    
+    
+    folder_permission.save()
+
+    return Response(res, status=200)
+
+@api_view(['GET'])
+def api_home_page(request, user_id):
+    """
+    API để trả về trang chủ
+    """
+    print ("Getting home page for user:", user_id)
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+    
+    folders = Folder.objects.filter(owner=user)
+    # images = Image.objects.filter(user=user)
+    
+    folders_ids = [folder.id for folder in folders]
+    # images_ids = [image.id for image in images]
+    
+    context = {
+        'user_id': user_id,
+        'folders': folders_ids
+    }
+    
+    return Response(context, status=200)

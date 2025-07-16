@@ -1,7 +1,7 @@
 
 
 from rest_framework import serializers
-from .models import User, Image, Folder, GGToken, Folder
+from .models import User, Image, Folder, GGToken, Folder, FolderPermission
 from applications.commons.utils import hash_password
 
 
@@ -100,6 +100,30 @@ class FolderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Folder
         fields = ['id', 'name', 'parent', 'owner', 'created_at', 'updated_at']
+    
+    def create(self, validated_data):
+        parent = validated_data.get('parent')
+        if parent and not Folder.objects.filter(id=parent.id).exists():
+            raise serializers.ValidationError("Parent folder does not exist.")
+        
+        folder = Folder(
+            name=validated_data['name'],
+            parent=parent,
+            owner=validated_data['owner']
+        )
+        folder.save()
+        
+        # create folderPermission for the owner
+        folder_permission = FolderPermission.objects.create(folder=folder)
+        # Set many-to-many relationships
+        owner = validated_data['owner']
+        folder_permission.allow_read.set([owner])
+        folder_permission.allow_write.set([owner])
+        folder_permission.allow_delete.set([owner])
+        folder_permission.save()
+        
+        
+        return folder
     
     def to_representation(self, instance):
         return {

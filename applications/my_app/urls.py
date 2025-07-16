@@ -27,6 +27,7 @@ urlpatterns = [
     
     # folder
     path('folder/create/', views.api_create_folder, name='create_folder'),
+    path('folder/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
     
     
 
@@ -39,5 +40,8 @@ urlpatterns = [
     path('sync/img/', views.api_sync_img, name='sync_img'),
     path('upload/img/', views.api_upload_img, name='upload_img'),
     
+    
+    # homepage
+    path('home/<int:user_id>', views.api_home_page, name='home'),
     
 ]
