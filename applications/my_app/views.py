@@ -79,6 +79,50 @@ def api_login(request):
     }, status=200)
 
 
+@api_view(['POST'])
+def api_login_with_gg(request):
+    access_token = request.data.get('access_token')
+    if not access_token:
+        return Response({'error': 'Access token is required'}, status=400)
+
+    # Step 1: Verify with Google
+    headers = {"Authorization": f"Bearer {access_token}"}
+    google_response = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", headers=headers)
+
+    if google_response.status_code != 200:
+        print ("Google response error:", google_response.json())
+        return Response({'error': 'Invalid Google access token'}, status=400)
+
+    google_data = google_response.json()
+    email = google_data.get('email')
+    username = google_data.get('name') or email.split('@')[0]
+
+    if not email:
+        return Response({'error': 'Email not found in Google data'}, status=400)
+    
+    # check if user exists
+    user = User.objects.filter(email=email).first()
+    if not user:
+        # Create new user if not exists
+        user = User.objects.create_gg_user(
+            username=username,
+            email=email
+        )
+    token = AuthenticationToken(user_id=user.id, expired_at=60*5, email=user.email).token
+    
+    return Response({
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'created_at': user.created_at,
+            'updated_at': user.updated_at
+        },
+        'token': token
+    }, status=200)
+    
+    
+
 
 @api_view(['GET'])
 @trace_api(class_response=APIResponse)
@@ -232,11 +276,22 @@ def api_get_images(request, user_id, folder_id):
     user = User.objects.filter(id=user_id).first()
     if not user:
         return Response({"error": "User not found"}, status=404)
-    
+
     folder = Folder.objects.filter(id=folder_id, owner=user).first()
     if not folder:
         return Response({"error": "Folder not found"}, status=404)
-    
-    images = Image.objects.filter(folder=folder).values('id', 'image_name', 'image', 'created_at')
-    
-    return Response({"images": list(images)}, status=200)
+
+    images = Image.objects.filter(folder=folder)
+
+    image_list = []
+    for img in images:
+        image_list.append({
+            'id': img.id,
+            'image_name': img.image_name,
+            'image': request.build_absolute_uri(img.image.url),
+            'created_at': img.created_at,
+        })
+
+    return Response({"images": image_list}, status=200)
+
+

@@ -20,7 +20,7 @@ class User(models.Model):
 
     username = models.CharField(max_length=255)
     email = models.EmailField()
-    password = models.CharField(max_length=255)  # Store hashed passwords
+    password = models.CharField(max_length=255, null=True, blank=True)  # Store hashed passwords
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
