@@ -16,15 +16,16 @@ from django.core.files.base import ContentFile
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
-from django.views.decorators.csrf import csrf_exempt
 
+from applications.my_app.tasks import sync_drive_folder_task
+from celery.result import AsyncResult
 # Create your views here.
 
 
-class GoogleLogin(SocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
-    callback_url = 'http://localhost:3000/callback' # Your frontend callback URL
-    client_class = OAuth2Client
+# class GoogleLogin(SocialLoginView):
+#     adapter_class = GoogleOAuth2Adapter
+#     callback_url = 'http://localhost:3000/callback' # Your frontend callback URL
+#     client_class = OAuth2Client
 
     
 # /auth/register
@@ -141,11 +142,14 @@ def api_get_user_info(request, user_id, _response: APIResponse, **kwargs):
         'user': user_serializer.data,
     }
     
-@csrf_exempt
 @api_view(['POST'])
-def api_create_folder(request):
+def api_create_folder(request, user_id):
     print ("Creating folder with data:", request.data)
-    serializer = FolderSerializer(data=request.data)
+    data = {
+        'name': request.data.get('name'),
+        'owner': user_id,
+    }
+    serializer = FolderSerializer(data=data)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=201)
@@ -156,7 +160,7 @@ def api_create_folder(request):
     
     
 @api_view(['POST'])
-def api_save_drive_token(request):
+def api_save_drive_token(request, user_id):
     """
     API để lưu token Google Drive
     """
@@ -165,7 +169,6 @@ def api_save_drive_token(request):
     try :
         token = request.data.get('access_token')
         email = request.data.get('drive_email')
-        user_id = request.data.get('user_id')
         
         user = User.objects.filter(id=user_id).first()
         
@@ -238,7 +241,7 @@ def api_sync_img(request):
 
     
 @api_view(['POST'])
-def api_upload_img(request):
+def api_upload_image(request):
     """
     API để upload ảnh lên server
     """
@@ -268,7 +271,27 @@ def api_upload_img(request):
     return Response({"message": "Image uploaded successfully", "image_id": img_model.id})
 
 
+@api_view(['DELETE'])
+def api_delete_image(request, user_id, image_id):
+    """
+    API để xóa ảnh
+    """
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
 
+    image = Image.objects.filter(id=image_id, user=user).first()
+    if not image:
+        return Response({"error": "Image not found"}, status=404)
+
+    # Delete the image file from storage
+    if image.image:
+        image.image.delete(save=False)
+    
+    # Delete the image record from the database
+    image.delete()
+
+    return Response({"message": "Image deleted successfully"}, status=200)
 
 @api_view(['GET'])
 def api_get_images(request, user_id, folder_id):
@@ -300,10 +323,7 @@ def api_get_images(request, user_id, folder_id):
 #     "allow_delete": [],
 # }
 @api_view(['POST'])
-def api_change_folder_permission(request):
-    
-    folder_id = request.data.get('folder_id')
-    user_id = request.data.get('user_id')
+def api_change_folder_permission(request, user_id, folder_id):
     
     # check if folder exists
     folder = Folder.objects.filter(id=folder_id).first()
@@ -328,16 +348,19 @@ def api_change_folder_permission(request):
         "message": "Folder permissions updated successfully",
         "folder_id": folder.id
     }
+    
+    # append owner to all permissions
+    allow_read_email.append(user.email)
+    allow_write_email.append(user.email)
+    allow_delete_email.append(user.email)
+    
     allow_read_users = User.objects.filter(email__in=allow_read_email)
     allow_write_users = User.objects.filter(email__in=allow_write_email)
     allow_delete_users = User.objects.filter(email__in=allow_delete_email)
     folder_permission.allow_read.set(allow_read_users)  
     folder_permission.allow_write.set(allow_write_users)
     folder_permission.allow_delete.set(allow_delete_users)
-    # res.update({"allow_read": [user.email for user in allow_read_users]})
-    # res.update({"allow_write": [user.email for user in allow_write_users]})
-    # res.update({"allow_delete": [user.email for user in allow_delete_users]})
-    
+
     
     folder_permission.save()
 
@@ -367,3 +390,40 @@ def api_home_page(request, user_id):
     }
     
     return Response(context, status=200)
+
+
+
+@api_view(['POST'])
+def api_sync_drive_folder(request, user_id):
+    """
+    API để đảo ngược chuỗi
+    """
+    try:
+        drive_folder_id = request.data.get('drive_folder_id', '')
+        user = User.objects.filter(id=user_id).first()
+        drive_acc_obj = DriveAccount.objects.filter(user=user).first()
+        access_token = drive_acc_obj.access_token
+        
+        # Call the reverse task
+        result = sync_drive_folder_task.delay(user_id, drive_folder_id, access_token)
+        
+        return Response({"task_id": result.id, "status": f"Folder:[{drive_folder_id}] sync task started for user_id {user_id}"}, status=202)
+    except Exception as e:
+        print("Error syncing drive folder:", str(e))
+        return Response({"error": f"{str(e)}"}, status=500)
+
+
+@api_view(['GET'])
+def api_get_task_status(request, user_id, task_id):
+    task_result = AsyncResult(task_id)
+
+    if task_result.state == 'PENDING':
+        return Response({"status": "Pending"})
+    elif task_result.state == 'SUCCESS':
+        return Response({"status": "Success", "result": task_result.result})
+    elif task_result.state == 'FAILURE':
+        return Response({"status": "Failure", "error": str(task_result.result)})
+    else:
+        return Response({"status": task_result.state})
+    
+    

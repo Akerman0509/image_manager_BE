@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     
     "applications.my_app",  
     'corsheaders',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -160,11 +161,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
-
 USE_I18N = True
 
 USE_TZ = True
+
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
+CELERY_ENABLE_UTC = False
+CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
+
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
@@ -234,3 +238,11 @@ AES_KEY= os.getenv("AES_KEY", "default_aes_key_123456")  # 32 bytes key for AES-
 
 
 # AUTH_USER_MODEL = 'my_app.User'
+
+
+# CELERY
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'

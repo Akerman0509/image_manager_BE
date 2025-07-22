@@ -49,12 +49,37 @@ class Folder(models.Model):
     name = models.CharField(max_length=255)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='subfolders')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='folders')
+    drive_folder_id = models.CharField(max_length=255, null=True, blank=True)  # Google Drive folder ID
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            # Create permissions for new folder
+            permission, created = FolderPermission.objects.get_or_create(folder=self)
+            if created:
+                permission.allow_read.set([self.owner])
+                permission.allow_write.set([self.owner])
+                permission.allow_delete.set([self.owner])
+
 
     def __str__(self):
         return self.name
 
+class FolderPermission(models.Model):
+    folder = models.OneToOneField(Folder, on_delete=models.CASCADE, related_name='permission')
+    allow_read = models.ManyToManyField(User, related_name='read_permissions', blank=True)
+    allow_write = models.ManyToManyField(User, related_name='write_permissions', blank=True)
+    allow_delete = models.ManyToManyField(User, related_name='delete_permissions', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Permissions for {self.folder.name}"
+    
 
 class Image(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images')
@@ -69,15 +94,7 @@ class Image(models.Model):
         return f"{self.image.name} in {self.folder.name if self.folder else 'No Folder'}, uploaded by {self.user.username}"
 
 
-class FolderPermission(models.Model):
-    folder = models.OneToOneField(Folder, on_delete=models.CASCADE, related_name='permission')
-    allow_read = models.ManyToManyField(User, related_name='read_permissions', blank=True)
-    allow_write = models.ManyToManyField(User, related_name='write_permissions', blank=True)
-    allow_delete = models.ManyToManyField(User, related_name='delete_permissions', blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Permissions for {self.folder.name}"
 
 
 class DriveAccount(models.Model):

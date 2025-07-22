@@ -10,38 +10,34 @@ from django.contrib.auth import views as auth_views
 
 app_name = "my_app"
 urlpatterns = [
-    path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
-    path('', auth_views.LoginView.as_view(template_name='dashboard.html'), name='dashboard'),
-    
     # /auth
     path('auth/register/', views.api_register, name='register'),
     path('auth/login/', views.api_login, name='login'),
     path ('auth/gg_login/', views.api_login_with_gg, name='login_with_gg'),
-    # /user
-    re_path('users/(?P<user_id>[-\w\d]+)/detail/$', views.api_get_user_info, name='user_info'),
-    # path('users/<int:user_id>/detail/', views.api_get_user_info, name='user_info'),
     
-    # path('auth/', include('dj_rest_auth.urls')),
-    # path('auth/google/', views.GoogleLogin.as_view(), name='google_login'),
+    # /user
+    re_path('user/(?P<user_id>[-\w\d]+)/detail/$', views.api_get_user_info, name='user_info'),
+    path('user/<int:user_id>/home/', views.api_home_page, name='home'),
     
     
     # folder
-    path('folder/create/', views.api_create_folder, name='create_folder'),
-    path('folder/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
+    path('user/<int:user_id>/folder/create/', views.api_create_folder, name='create_folder'),
+    path('user/<int:user_id>/folder/<int:folder_id>/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
     
     
 
     # get img
-    path('<int:user_id>/<int:folder_id>/images', views.api_get_images, name='get_img_list'),
+    path('user/<int:user_id>/folder/<int:folder_id>/images/', views.api_get_images, name='get_img_list'),
     
     
     # upload + sync
-    path('sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
-    path('sync/img/', views.api_sync_img, name='sync_img'),
-    path('upload/img/', views.api_upload_img, name='upload_img'),
+    path('user/<int:user_id>/sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
+    path('user/<int:user_id>/sync/img/', views.api_sync_img, name='sync_img'),
+    path('user/<int:user_id>/upload/img/', views.api_upload_image, name='upload_img'),
+    path('user/<int:user_id>/image/<int:image_id>/', views.api_delete_image, name='delete_img'),
+
     
-    
-    # homepage
-    path('home/<int:user_id>', views.api_home_page, name='home'),
-    
+    # sync drive folder
+    path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
+    path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
 ]

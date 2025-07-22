@@ -47,8 +47,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = User
         fields = ['email', 'password']
@@ -64,10 +62,6 @@ class LoginSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Password is required.")
         return data
         
-        
-
-        
-
     
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -112,16 +106,6 @@ class FolderSerializer(serializers.ModelSerializer):
             owner=validated_data['owner']
         )
         folder.save()
-        
-        # create folderPermission for the owner
-        folder_permission = FolderPermission.objects.create(folder=folder)
-        # Set many-to-many relationships
-        owner = validated_data['owner']
-        folder_permission.allow_read.set([owner])
-        folder_permission.allow_write.set([owner])
-        folder_permission.allow_delete.set([owner])
-        folder_permission.save()
-        
         
         return folder
     
