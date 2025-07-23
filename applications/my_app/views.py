@@ -6,11 +6,12 @@ from applications.my_app.serializers import RegisterSerializer, LoginSerializer,
 from applications.my_app.models import User,DriveAccount, Image, Folder, FolderPermission
 from applications.commons.utils import check_password
 from applications.my_app.token import AuthenticationToken
-from applications.my_app.decorator import auth_required
 from applications.commons.exception import APIWarningException
 from applications.commons.log_lib import APIResponse, trace_api
 from rest_framework.response import Response
 from django.core.files.base import ContentFile
+
+from applications.my_app.decorator import require_auth
 
 
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
@@ -82,6 +83,7 @@ def api_login(request):
 @api_view(['POST'])
 def api_login_with_gg(request):
     access_token = request.data.get('access_token')
+    print ("[api_login_with_gg] Access token received:", access_token)
     if not access_token:
         return Response({'error': 'Access token is required'}, status=400)
 
@@ -108,6 +110,7 @@ def api_login_with_gg(request):
             username=username,
             email=email
         )
+        print ("[api_login_with_gg] New user created:", user.username)
     token = AuthenticationToken(user_id=user.id, expired_at=60*5, email=user.email).token
     
     return Response({
@@ -125,22 +128,18 @@ def api_login_with_gg(request):
 
 
 @api_view(['GET'])
-@trace_api(class_response=APIResponse)
-@auth_required()
-def api_get_user_info(request, user_id, _response: APIResponse, **kwargs):
+@require_auth
+def api_get_user_info(request, user_id):
     """
     API để lấy thông tin người dùng từ token
     """
     # get from kwargs.update in auth_required decorator
     user = User.objects.filter(id=user_id).first()
     if not user:
-        _response.message = "User not found"
-        return APIWarningException(f"{_response.message}")
+        return Response({'error': 'User not found'}, status=404)
     
     user_serializer = UserSerializer(user)
-    _response.data_resp={
-        'user': user_serializer.data,
-    }
+    return Response(user_serializer.data, status=200)
     
 @api_view(['POST'])
 def api_create_folder(request, user_id):
@@ -160,6 +159,7 @@ def api_create_folder(request, user_id):
     
     
 @api_view(['POST'])
+@require_auth
 def api_save_drive_token(request, user_id):
     """
     API để lưu token Google Drive
@@ -195,6 +195,7 @@ def api_save_drive_token(request, user_id):
 
 
 @api_view(['POST'])
+@require_auth
 def api_sync_img(request):
     """
     API để lưu ảnh lên server
@@ -241,6 +242,7 @@ def api_sync_img(request):
 
     
 @api_view(['POST'])
+@require_auth
 def api_upload_image(request):
     """
     API để upload ảnh lên server
@@ -272,6 +274,7 @@ def api_upload_image(request):
 
 
 @api_view(['DELETE'])
+@require_auth
 def api_delete_image(request, user_id, image_id):
     """
     API để xóa ảnh
@@ -294,6 +297,7 @@ def api_delete_image(request, user_id, image_id):
     return Response({"message": "Image deleted successfully"}, status=200)
 
 @api_view(['GET'])
+@require_auth
 def api_get_images(request, user_id, folder_id):
     user = User.objects.filter(id=user_id).first()
     if not user:
@@ -323,6 +327,7 @@ def api_get_images(request, user_id, folder_id):
 #     "allow_delete": [],
 # }
 @api_view(['POST'])
+@require_auth
 def api_change_folder_permission(request, user_id, folder_id):
     
     # check if folder exists
@@ -367,6 +372,7 @@ def api_change_folder_permission(request, user_id, folder_id):
     return Response(res, status=200)
 
 @api_view(['GET'])
+@require_auth
 def api_home_page(request, user_id):
     """
     API để trả về trang chủ
@@ -394,6 +400,7 @@ def api_home_page(request, user_id):
 
 
 @api_view(['POST'])
+@require_auth
 def api_sync_drive_folder(request, user_id):
     """
     API để đảo ngược chuỗi
@@ -414,6 +421,7 @@ def api_sync_drive_folder(request, user_id):
 
 
 @api_view(['GET'])
+@require_auth
 def api_get_task_status(request, user_id, task_id):
     task_result = AsyncResult(task_id)
 
