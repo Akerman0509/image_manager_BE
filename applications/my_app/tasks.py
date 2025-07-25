@@ -2,7 +2,7 @@
 from celery import shared_task
 import requests
 from django.core.files.base import ContentFile
-from applications.my_app.models import Image, Folder, User
+from applications.my_app.models import Image, Folder, User,CloudAccount
 
 @shared_task
 def sync_drive_folder_task (user_id, folder_id,  drive_folder_id, access_token):
@@ -87,3 +87,37 @@ def sync_drive_folder_task (user_id, folder_id,  drive_folder_id, access_token):
     
     except Exception as e:
         return {"error": str(e)}
+
+
+@shared_task
+def sync_image_task(user_id, drive_email, img_name, img_id, img_folder_id):
+    try:
+        user = User.objects.get(id=user_id)
+        folder = Folder.objects.filter(id=img_folder_id).first()
+        drive_account = CloudAccount.objects.filter(user=user, drive_email=drive_email).first()
+
+        if not drive_account:
+            return {"error": "Drive account not found"}
+
+        access_token = drive_account.credentials.get("access_token")
+
+        drive_url = f"https://www.googleapis.com/drive/v3/files/{img_id}?alt=media"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        response = requests.get(drive_url, headers=headers)
+
+        if response.status_code != 200:
+            return {"error": "Failed to download image from Google Drive"}
+
+        img_content = ContentFile(response.content)
+        img_model = Image(
+            user=user,
+            image_name=img_name,
+            folder=folder
+        )
+        img_model.image.save(img_name, img_content)
+        img_model.save()
+
+        return {"message": "Image saved successfully", "image_id": img_model.id}
+
+    except Exception as e:
+        return {"error": f"Exception occurred: {str(e)}"}

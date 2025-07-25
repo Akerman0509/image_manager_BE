@@ -18,7 +18,7 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 
-from applications.my_app.tasks import sync_drive_folder_task
+from applications.my_app.tasks import sync_drive_folder_task,sync_image_task
 from celery.result import AsyncResult
 # Create your views here.
 
@@ -207,47 +207,23 @@ def api_save_drive_token(request, user_id):
 
 @api_view(['POST'])
 @require_auth
-def api_sync_img(request,user_id):
+def api_sync_img(request, user_id):
     """
-    API để lưu ảnh lên server
+    API to trigger Celery task for syncing an image from Google Drive
     """
-    try:
-        drive_email = request.data.get('drive_email')
-        img_name = request.data.get('img_name')
-        img_id = request.data.get('img_id')
-        img_folder_id = request.data.get('img_folder_id')
-        
-        user = User.objects.filter(id=user_id).first()
-        folder = Folder.objects.filter(id=img_folder_id).first()
-        drive_account = CloudAccount.objects.filter(user=user, drive_email=drive_email).first()
+    drive_email = request.data.get('drive_email')
+    img_name = request.data.get('img_name')
+    img_id = request.data.get('img_id')
+    img_folder_id = request.data.get('img_folder_id')
 
-        access_token = drive_account.credentials.get('access_token')
-        
-        print (f"user: {user.username}, drive_email: {drive_email}, img_name: {img_name}, img_id: {img_id}, img_folder_id: {img_folder_id}, access_token: {access_token}")
+    # Trigger Celery task
+    task = sync_image_task.delay(user_id, drive_email, img_name, img_id, img_folder_id)
 
-        # Get image content from Google Drive
-        drive_url = f"https://www.googleapis.com/drive/v3/files/{img_id}?alt=media"
-        headers = {"Authorization": f"Bearer {access_token}"}
-        response = requests.get(drive_url, headers=headers)
+    return Response({
+        "message": "Image sync task started",
+        "task_id": task.id
+    })
 
-        if response.status_code != 200:
-            return Response({"error": "Failed to download image from Google Drive"}, status=500)
-
-        # Save image to Django model
-        img_content = ContentFile(response.content)
-        img_model = Image(
-            user=user,
-            image_name=img_name,
-            folder=folder
-        )
-        img_model.image.save(img_name, img_content)
-        img_model.save()
-        
-    except Exception as e:
-        print("Error saving image:", str(e))
-        return Response({"error": "Failed to save image"}, status=500)
-
-    return Response({"message": "Image saved successfully", "image_id": img_model.id})
 
 
     
