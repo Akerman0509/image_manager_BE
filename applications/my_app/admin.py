@@ -13,25 +13,25 @@ class UserAdmin(admin.ModelAdmin):
     
     
 
-class ImageInline(admin.TabularInline):
-    model = Image
-    extra = 0
-    readonly_fields = ('image_link', 'created_at', 'updated_at')
-    fields = ('image_link', 'created_at', 'updated_at')
+# class ImageInline(admin.TabularInline):
+#     model = Image
+#     extra = 0
+#     readonly_fields = ('image_link', 'created_at', 'updated_at')
+#     fields = ('image_link', 'created_at', 'updated_at')
 
-    def image_link(self, obj):
-        if obj.pk:
-            # Get admin URL to change this Image object
-            url = reverse('admin:my_app_image_change    ', args=[obj.pk])
-            return mark_safe(f'<a href="{url}" target="_blank">{obj.image.name}</a>')
-        return "-"
-    image_link.short_description = "Image File"
+#     def image_link(self, obj):
+#         if obj.pk:
+#             # Get admin URL to change this Image object
+#             url = reverse('admin:my_app_image_change    ', args=[obj.pk])
+#             return mark_safe(f'<a href="{url}" target="_blank">{obj.image.name}</a>')
+#         return "-"
+#     image_link.short_description = "Image File"
         
 
 @admin.register(Folder)
 class FolderAdmin(admin.ModelAdmin):
     
-    inlines = [ImageInline]
+    # inlines = [ImageInline]
     
     list_display = ('id','name', 'parent', 'owner')
     search_fields = ('name',)

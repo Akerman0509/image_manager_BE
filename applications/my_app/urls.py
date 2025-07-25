@@ -42,4 +42,5 @@ urlpatterns = [
     # sync drive folder
     path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
     path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
+    path('user/<int:user_id>/sync/folder/create_sync_job/', views.api_create_sync_job, name='api_create_sync_job'),
 ]

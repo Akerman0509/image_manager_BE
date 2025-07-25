@@ -5,7 +5,7 @@ from django.core.files.base import ContentFile
 from applications.my_app.models import Image, Folder, User,CloudAccount
 
 @shared_task
-def sync_drive_folder_task (user_id, folder_id,  drive_folder_id, access_token):
+def sync_drive_folder_task (user_id,  drive_folder_id, access_token):
     print (f"Starting sync for user_id: {user_id} with drive folder: {drive_folder_id}")
     print (f"Access token: {access_token}")
 

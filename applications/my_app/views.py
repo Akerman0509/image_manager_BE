@@ -10,13 +10,10 @@ from applications.commons.exception import APIWarningException
 from applications.commons.log_lib import APIResponse, trace_api
 from rest_framework.response import Response
 from django.core.files.base import ContentFile
-
+from django.conf import settings
+from django_celery_beat.models import PeriodicTask, IntervalSchedule
+import json
 from applications.my_app.decorator import require_auth
-
-
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-from dj_rest_auth.registration.views import SocialLoginView
 
 from applications.my_app.tasks import sync_drive_folder_task,sync_image_task
 from celery.result import AsyncResult
@@ -451,3 +448,95 @@ def api_get_task_status(request, user_id, task_id):
     
 
 
+def renew_gg_access_token(user_id):
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+
+    cloud_account_obj = CloudAccount.objects.filter(user=user, platform='google_drive').first()
+    if not cloud_account_obj:
+        return Response({"error": "Cloud account not found"}, status=404)
+
+    refresh_token = cloud_account_obj.credentials.get('refresh_token', '')
+    if not refresh_token:
+        return Response({"error": "Refresh token missing"}, status=400)
+
+    client_id = settings.GOOGLE_CLIENT_ID
+    client_secret = settings.GOOGLE_CLIENT_SECRET
+
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token"
+    }
+
+    response = requests.post(token_url, data=data)
+
+    if response.status_code != 200:
+        return Response({"error": "Failed to renew access token"}, status=500)
+
+    new_tokens = response.json()
+    new_access_token = new_tokens.get("access_token")
+
+    # Update the stored access_token in credentials
+    credentials = cloud_account_obj.credentials
+    credentials["access_token"] = new_access_token
+    credentials["expires_in"] = new_tokens.get("expires_in")  # Optional
+    cloud_account_obj.credentials = credentials
+    cloud_account_obj.save()
+
+    return Response({"access_token": new_access_token, "expires_in": new_tokens.get("expires_in")})
+
+
+@api_view(['POST'])
+@require_auth
+def api_create_sync_job(request, user_id):
+    """
+    Create a periodic task to sync Google Drive folder every 15 minutes
+    """
+    folder_drive_id = request.data.get('drive_folder_id')
+    task_name = request.data.get('task_name', 'sync-drive-folder-every-15-minutes')
+    interval = request.data.get('interval', 15)  # Default to 15 minutes if not provided
+    
+    if not user_id or not folder_drive_id:
+        return Response({'error': 'user_id and drive_folder_id are required'}, status=400)
+    
+    cloud_account_obj = CloudAccount.objects.filter(user__id=user_id, platform='google_drive').first()
+    if not cloud_account_obj:
+        return Response({'error': 'Cloud account not found'}, status=404)
+    access_token = cloud_account_obj.credentials.get('access_token', '')
+    # Create or get the interval schedule
+    schedule, created = IntervalSchedule.objects.get_or_create(
+        every=interval,
+        period=IntervalSchedule.MINUTES,
+    )
+    
+    # Create the periodic task
+    task, created = PeriodicTask.objects.update_or_create(
+        name=task_name,  # Lookup by unique name
+        defaults={
+            'interval': schedule,
+            'task': 'applications.my_app.tasks.sync_drive_folder_task',
+            'args': json.dumps([user_id, folder_drive_id, access_token]),
+        }
+    )
+    res = {
+        'task_name': task.name,
+        'task_id': task.id,
+        'user_id': user_id,
+        'folder_drive_id': folder_drive_id,
+        'interval': interval,
+        'created': created
+    }
+    if not created:
+        res.update({
+            'message': 'Periodic task already exists, updated with new parameters'
+        })
+    else:
+        res.update({
+            'message': 'Periodic task created successfully'
+        })
+    return Response(res, status=201)
+    

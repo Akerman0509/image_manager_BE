@@ -11,33 +11,10 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 
-
 # app.conf.beat_schedule = {
-#     'sync-drive-folder-every-30-minutes': {
+#     'sync-drive-folder-every-15-minutes': {
 #         'task': 'applications.my_app.tasks.sync_drive_folder_task',
-#         'schedule': crontab(minute='*/30'),  # every 30 mins
-#         'args': (1, 'your_drive_folder_id_here', 'your_access_token_here'),
+#         'schedule': crontab(minute='*/2'),  # every 15 minutes
+#         'args': (None, None, ''),  # Default: do nothing / no user or folder
 #     },
 # }
-
-
-# from django_celery_beat.models import CrontabSchedule, PeriodicTask
-# import json
-
-# schedule, _ = CrontabSchedule.objects.get_or_create(
-#     minute='20',
-#     hour='17',
-#     day_of_week='*',
-#     day_of_month='*',
-#     month_of_year='*',
-#     timezone='Asia/Ho_Chi_Minh'
-# )
-
-# PeriodicTask.objects.update_or_create(
-#     name='Daily Drive Sync',
-#     defaults={
-#         'crontab': schedule,
-#         'task': 'applications.my_app.tasks.sync_drive_folder_task',
-#         'args': json.dumps([1, 'your_drive_folder_id', 'your_access_token']),
-#     }
-# )
