@@ -16,7 +16,7 @@ class User(models.Model):
     class AccountType(models.TextChoices):
         NORMAL = 'normal', 'Normal'
         GG_AUTH = 'gg_auth', 'gg_auth'
-        
+            
 
     username = models.CharField(max_length=255)
     email = models.EmailField()
@@ -35,15 +35,6 @@ class User(models.Model):
         return self.username
     
     
-class GGToken(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='gg_tokens')
-    token = models.CharField(max_length=255, null=True, blank=True)  # Google Drive token
-    created_at = models.DateTimeField(auto_now_add=True)   
-    
-
-    def __str__(self):
-        return f"GG Token for {self.user.username} "
-
 
 class Folder(models.Model):
     name = models.CharField(max_length=255)
@@ -97,11 +88,37 @@ class Image(models.Model):
 
 
 
-class DriveAccount(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drive_accounts')
-    access_token = models.CharField(max_length=255)
+class CloudAccount(models.Model):
+    PLATFORM_CHOICES = [
+        ('google_drive', 'Google Drive'),
+        ('s3', 'Amazon S3'),
+        ('dropbox', 'Dropbox'),
+        # etc.
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cloud_accounts')
+    platform = models.CharField(max_length=50, choices=PLATFORM_CHOICES)
+    credentials = models.JSONField()  # Store tokens/keys here
+    drive_email = models.EmailField(blank=True, null=True)
+    account_id = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    drive_email = models.EmailField()
 
     def __str__(self):
         return f"Drive Account for {self.user.username} ({self.drive_email})"
+
+
+
+
+# credentials = models.JSONField()  # Store tokens/keys here
+# // For Google Drive
+# {
+#   "access_token": "...",
+#   "refresh_token": "...",
+#   "expires_in": 3600
+# }
+
+# // For S3
+# {
+#   "access_key_id": "...",
+#   "secret_access_key": "...",
+#   "session_token": "..."
+# }

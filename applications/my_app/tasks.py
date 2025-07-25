@@ -5,7 +5,7 @@ from django.core.files.base import ContentFile
 from applications.my_app.models import Image, Folder, User
 
 @shared_task
-def sync_drive_folder_task (user_id, drive_folder_id, access_token):
+def sync_drive_folder_task (user_id, folder_id,  drive_folder_id, access_token):
     print (f"Starting sync for user_id: {user_id} with drive folder: {drive_folder_id}")
     print (f"Access token: {access_token}")
 
@@ -27,12 +27,13 @@ def sync_drive_folder_task (user_id, drive_folder_id, access_token):
 
         folder_name = folder_metadata.get('name', f"Drive-folder-{drive_folder_id}")
 
-        
+        parent_folder = Folder.objects.filter(owner=user, drive_folder_id=drive_folder_id).first()
 
         #Get or create Folder
         folder, created = Folder.objects.get_or_create(
             drive_folder_id=drive_folder_id,
             owner=user,
+            parent =parent_folder ,
             defaults={'name': folder_name},
         )
         # Clear existing images in this folder

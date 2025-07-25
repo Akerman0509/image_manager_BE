@@ -3,7 +3,7 @@ from django.shortcuts import render
 import requests
 from rest_framework.decorators import api_view
 from applications.my_app.serializers import RegisterSerializer, LoginSerializer, UserSerializer, FolderSerializer
-from applications.my_app.models import User,DriveAccount, Image, Folder, FolderPermission
+from applications.my_app.models import User, CloudAccount, Image, Folder, FolderPermission
 from applications.commons.utils import check_password
 from applications.my_app.token import AuthenticationToken
 from applications.commons.exception import APIWarningException
@@ -63,11 +63,16 @@ def api_login(request):
     if not user:
         print ("User not found with username:", email)
         return Response({'error': 'User not found'}, status=404)
+    
+    #check if user has gg account associated with this email
+    if user.account_type == User.AccountType.GG_AUTH:
+        return Response({'INFO': 'user already has gg account associated with this email, pls login with gg'}, status=400)
+    
     if not check_password(password, user.password):
         print ("Password is incorrect for user:", email)
         return Response({'error': 'Incorrect password'}, status=401)
     
-    token = AuthenticationToken(user_id=user.id, expired_at=60*5, email=user.email).token
+    token = AuthenticationToken(user_id=user.id, expired_at=60*20, email=user.email).token
     
     print ("Login successful for user:", email)
     
@@ -111,7 +116,7 @@ def api_login_with_gg(request):
             email=email
         )
         print ("[api_login_with_gg] New user created:", user.username)
-    token = AuthenticationToken(user_id=user.id, expired_at=60*5, email=user.email).token
+    token = AuthenticationToken(user_id=user.id, expired_at=60*20, email=user.email).token
     
     return Response({
         'user': {
@@ -169,21 +174,27 @@ def api_save_drive_token(request, user_id):
     try :
         token = request.data.get('access_token')
         email = request.data.get('drive_email')
+        refresh_token = request.data.get('refresh_token')
         
         user = User.objects.filter(id=user_id).first()
         
         
-        drive_account = DriveAccount.objects.filter(user=user).first()
+        drive_account = CloudAccount.objects.filter(user=user).first()
+        credentials = {
+            "access_token": token,
+            "refresh_token":refresh_token
+        }
+        
         if not drive_account:
             print ("Creating new DriveAccount for user:", user.username)
-            drive_account = DriveAccount.objects.create(
+            drive_account = CloudAccount.objects.create(
                 user=user,
                 drive_email=email,
-                access_token=token
+                credentials = credentials
                 )
         else: 
             print ("Updating existing DriveAccount for user:", user.username)
-            drive_account.access_token = token
+            drive_account.credentials = credentials
             drive_account.save()
         
         print ("Token saved successfully for user:", user.username)
@@ -196,12 +207,11 @@ def api_save_drive_token(request, user_id):
 
 @api_view(['POST'])
 @require_auth
-def api_sync_img(request):
+def api_sync_img(request,user_id):
     """
     API để lưu ảnh lên server
     """
     try:
-        user_id = request.data.get('user_id')
         drive_email = request.data.get('drive_email')
         img_name = request.data.get('img_name')
         img_id = request.data.get('img_id')
@@ -209,9 +219,9 @@ def api_sync_img(request):
         
         user = User.objects.filter(id=user_id).first()
         folder = Folder.objects.filter(id=img_folder_id).first()
-        drive_account = DriveAccount.objects.filter(user=user, drive_email=drive_email).first()
+        drive_account = CloudAccount.objects.filter(user=user, drive_email=drive_email).first()
 
-        access_token = drive_account.access_token
+        access_token = drive_account.credentials.get('access_token')
         
         print (f"user: {user.username}, drive_email: {drive_email}, img_name: {img_name}, img_id: {img_id}, img_folder_id: {img_folder_id}, access_token: {access_token}")
 
@@ -243,12 +253,11 @@ def api_sync_img(request):
     
 @api_view(['POST'])
 @require_auth
-def api_upload_image(request):
+def api_upload_image(request, user_id):
     """
     API để upload ảnh lên server
     """
     try:
-        user_id = request.data.get('user_id')
         folder_id = request.data.get('folder_id')
         img_file = request.FILES.get('img_file')
         image_name = img_file.name
@@ -345,6 +354,8 @@ def api_change_folder_permission(request, user_id, folder_id):
     print("Folder permission:", folder_permission)
     
     # take out list
+    print (request.data)
+    
     allow_read_email = request.data.get('allow_read', [])
     allow_write_email = request.data.get('allow_write', [])
     allow_delete_email = request.data.get('allow_delete', [])
@@ -383,36 +394,64 @@ def api_home_page(request, user_id):
         return Response({"error": "User not found"}, status=404)
     
     folders = Folder.objects.filter(owner=user)
-    # images = Image.objects.filter(user=user)
-    
-    # folders_ids = [folder.id for folder in folders]
-    # images_ids = [image.id for image in images]
     # take out folder id and folder_name
     folder_dicts = [{'id': folder.id, 'name': folder.name} for folder in folders]
     
-    context = {
-        'user_id': user_id,
-        'folders': folder_dicts
-    }
-    
-    return Response(context, status=200)
+    images = Image.objects.filter(folder__isnull=True)
 
+    image_list = []
+    for img in images:
+        image_list.append({
+            'id': img.id,
+            'image_name': img.image_name,
+            'image': request.build_absolute_uri(img.image.url),
+            'created_at': img.created_at,
+        })
+    res = {
+        'user_id': user_id,
+        'folders': folder_dicts,
+        'images': image_list,
+    }
+    return Response(res, status=200)
+
+# shared forlder
+@api_view(['GET'])
+@require_auth
+def api_get_shared_folders(request, user_id):
+    """
+    API để lấy danh sách các thư mục được chia sẻ với người dùng
+    """
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+    
+    allow_read_folders = Folder.objects.filter(permission__allow_read=user).exclude(owner=user)
+    allow_write_folders = Folder.objects.filter(permission__allow_write=user).exclude(owner=user)
+    
+    folders = (allow_read_folders | allow_write_folders).distinct()
+    folder_dict = [{'id': folder.id, 'name': folder.name, 'owner': folder.owner.username} for folder in folders]
+    
+    res = {
+        'user_id': user_id,
+        'shared_folders': folder_dict,
+    }
+    return Response(res, status=200)
 
 
 @api_view(['POST'])
 @require_auth
-def api_sync_drive_folder(request, user_id):
+def api_sync_drive_folder(request, user_id, folder_id):
     """
     API để đảo ngược chuỗi
     """
     try:
         drive_folder_id = request.data.get('drive_folder_id', '')
         user = User.objects.filter(id=user_id).first()
-        drive_acc_obj = DriveAccount.objects.filter(user=user).first()
-        access_token = drive_acc_obj.access_token
+        drive_acc_obj = CloudAccount.objects.filter(user=user).first()
+        access_token = drive_acc_obj.credentials.get('access_token', '')
         
         # Call the reverse task
-        result = sync_drive_folder_task.delay(user_id, drive_folder_id, access_token)
+        result = sync_drive_folder_task.delay(user_id, folder_id, drive_folder_id, access_token)
         
         return Response({"task_id": result.id, "status": f"Folder:[{drive_folder_id}] sync task started for user_id {user_id}"}, status=202)
     except Exception as e:
@@ -434,4 +473,5 @@ def api_get_task_status(request, user_id, task_id):
     else:
         return Response({"status": task_result.state})
     
-    
+
+

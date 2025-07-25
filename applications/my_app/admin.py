@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import User, Folder, Image, GGToken, DriveAccount, FolderPermission
+from .models import User, Folder, Image, CloudAccount, FolderPermission
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 # Register your models here.
@@ -80,18 +80,12 @@ class FolderPermissionAdmin(admin.ModelAdmin):
     def delete_users(self, obj):
         return ", ".join(user.email for user in obj.allow_delete.all())
 
-    
-@admin.register(GGToken)
-class GGTokenAdmin(admin.ModelAdmin):
-    list_display = ('user__username', 'token', 'created_at')
-    search_fields = ('user__username', 'token')
-    ordering = ('-created_at',)
+
     
     
-    
-@admin.register(DriveAccount)
+@admin.register(CloudAccount)
 class DriveAccountAdmin(admin.ModelAdmin):
-    list_display = ('id','user__username', 'drive_email','access_token', 'created_at', )
+    list_display = ('id','user__username', 'drive_email', 'credentials', 'created_at', )
     search_fields = ('user__username', 'drive_email')
     ordering = ('-created_at',)
     

@@ -19,6 +19,8 @@ urlpatterns = [
     re_path('user/(?P<user_id>[-\w\d]+)/detail/$', views.api_get_user_info, name='user_info'),
     path('user/<int:user_id>/home/', views.api_home_page, name='home'),
     
+    path('user/<str:user_id>/shared/', views.api_get_shared_folders, name='shared'),
+    
     
     # folder
     path('user/<int:user_id>/folder/create/', views.api_create_folder, name='create_folder'),
