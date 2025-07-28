@@ -17,6 +17,8 @@ from applications.my_app.decorator import require_auth
 
 from applications.my_app.tasks import sync_drive_folder_task,sync_image_task
 from celery.result import AsyncResult
+
+from django.shortcuts import get_object_or_404
 # Create your views here.
 
 
@@ -69,7 +71,7 @@ def api_login(request):
         print ("Password is incorrect for user:", email)
         return Response({'error': 'Incorrect password'}, status=401)
     
-    token = AuthenticationToken(user_id=user.id, expired_at=60*20, email=user.email).token
+    token = AuthenticationToken(user_id=user.id, expired_at=60*60, email=user.email).token
     
     print ("Login successful for user:", email)
     
@@ -113,7 +115,7 @@ def api_login_with_gg(request):
             email=email
         )
         print ("[api_login_with_gg] New user created:", user.username)
-    token = AuthenticationToken(user_id=user.id, expired_at=60*20, email=user.email).token
+    token = AuthenticationToken(user_id=user.id, expired_at=60*60, email=user.email).token
     
     return Response({
         'user': {
@@ -212,6 +214,9 @@ def api_sync_img(request, user_id):
     img_name = request.data.get('img_name')
     img_id = request.data.get('img_id')
     img_folder_id = request.data.get('img_folder_id')
+    
+    if not allow_action(user_id, img_folder_id, 'write'):
+        return Response({"error": "You do not have permission to sync image to this folder"}, status=403)
 
     # Trigger Celery task
     task = sync_image_task.delay(user_id, drive_email, img_name, img_id, img_folder_id)
@@ -221,9 +226,6 @@ def api_sync_img(request, user_id):
         "task_id": task.id
     })
 
-
-
-    
 @api_view(['POST'])
 @require_auth
 def api_upload_image(request, user_id):
@@ -240,6 +242,9 @@ def api_upload_image(request, user_id):
         if not user or not folder:
             return Response({"error": "User or folder not found"}, status=404)
         
+        if not allow_action(user_id, folder_id, 'write'):
+            return Response({"error": "You do not have permission to upload image to this folder"}, status=403)
+        
         img_model = Image(
             user=user,
             image=img_file,
@@ -254,29 +259,6 @@ def api_upload_image(request, user_id):
 
     return Response({"message": "Image uploaded successfully", "image_id": img_model.id})
 
-
-@api_view(['DELETE'])
-@require_auth
-def api_delete_image(request, user_id, image_id):
-    """
-    API để xóa ảnh
-    """
-    user = User.objects.filter(id=user_id).first()
-    if not user:
-        return Response({"error": "User not found"}, status=404)
-
-    image = Image.objects.filter(id=image_id, user=user).first()
-    if not image:
-        return Response({"error": "Image not found"}, status=404)
-
-    # Delete the image file from storage
-    if image.image:
-        image.image.delete(save=False)
-    
-    # Delete the image record from the database
-    image.delete()
-
-    return Response({"message": "Image deleted successfully"}, status=200)
 
 @api_view(['GET'])
 @require_auth
@@ -301,6 +283,29 @@ def api_get_images(request, user_id, folder_id):
         })
 
     return Response({"images": image_list}, status=200)
+
+@api_view(['DELETE'])
+@require_auth
+def api_delete_images(request, user_id, folder_id,image_id):
+    user = User.objects.filter(id=user_id).first()
+    if not allow_action(user_id, folder_id, 'delete'):
+        return Response({"error": "You do not have permission to delete this image"}, status=403)   
+    
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+
+    image = Image.objects.filter(id=image_id).first()
+    if not image:
+        return Response({"error": "Image not found"}, status=404)
+    # Delete the image file from storage
+    if image.image:
+        image.image.delete(save=False)
+
+    # Delete the database record
+    image.delete()
+
+    return Response({"message": "Image deleted successfully"}, status=200)
+
 
 
 # {
@@ -387,6 +392,37 @@ def api_home_page(request, user_id):
     }
     return Response(res, status=200)
 
+
+
+@api_view(['DELETE'])
+@require_auth
+def api_delete_folder(request, user_id, folder_id):
+    """
+    API để xóa thư mục
+    """
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+    if not allow_action(user_id, folder_id, 'delete'):
+        return Response({"error": "You do not have permission to delete this folder"}, status=403)
+    
+    folder = Folder.objects.filter(id=folder_id).first()
+    if not folder:
+        return Response({"error": "Folder not found"}, status=404)
+    
+    # Delete all images in the folder
+    images = Image.objects.filter(folder=folder)
+    for img in images:
+        if img.image:
+            img.image.delete(save=False)  # Delete the image file from storage
+        img.delete()  # Delete the database record
+    
+    # Delete the folder itself
+    folder.delete()
+    
+    return Response({"message": "Folder deleted successfully"}, status=200)
+
+
 # shared forlder
 @api_view(['GET'])
 @require_auth
@@ -413,18 +449,19 @@ def api_get_shared_folders(request, user_id):
 
 @api_view(['POST'])
 @require_auth
-def api_sync_drive_folder(request, user_id, folder_id):
+def api_sync_drive_folder(request, user_id):
     """
     API để đảo ngược chuỗi
     """
     try:
         drive_folder_id = request.data.get('drive_folder_id', '')
+        parent_folder_id = request.data.get('parent_folder_id', '')
         user = User.objects.filter(id=user_id).first()
         drive_acc_obj = CloudAccount.objects.filter(user=user).first()
         access_token = drive_acc_obj.credentials.get('access_token', '')
         
         # Call the reverse task
-        result = sync_drive_folder_task.delay(user_id, folder_id, drive_folder_id, access_token)
+        result = sync_drive_folder_task.delay(user_id, drive_folder_id, parent_folder_id,  access_token)
         
         return Response({"task_id": result.id, "status": f"Folder:[{drive_folder_id}] sync task started for user_id {user_id}"}, status=202)
     except Exception as e:
@@ -447,8 +484,9 @@ def api_get_task_status(request, user_id, task_id):
         return Response({"status": task_result.state})
     
 
-
-def renew_gg_access_token(user_id):
+@api_view(['GET'])
+@require_auth
+def api_renew_gg_token(request, user_id):
     user = User.objects.filter(id=user_id).first()
     if not user:
         return Response({"error": "User not found"}, status=404)
@@ -497,6 +535,7 @@ def api_create_sync_job(request, user_id):
     Create a periodic task to sync Google Drive folder every 15 minutes
     """
     folder_drive_id = request.data.get('drive_folder_id')
+    parent_folder_id = request.data.get('parent_folder_id', '')
     task_name = request.data.get('task_name', 'sync-drive-folder-every-15-minutes')
     interval = request.data.get('interval', 15)  # Default to 15 minutes if not provided
     
@@ -519,7 +558,7 @@ def api_create_sync_job(request, user_id):
         defaults={
             'interval': schedule,
             'task': 'applications.my_app.tasks.sync_drive_folder_task',
-            'args': json.dumps([user_id, folder_drive_id, access_token]),
+            'args': json.dumps([user_id, folder_drive_id, parent_folder_id, access_token]),
         }
     )
     res = {
@@ -539,4 +578,88 @@ def api_create_sync_job(request, user_id):
             'message': 'Periodic task created successfully'
         })
     return Response(res, status=201)
+    
+    
+    
+@api_view(['GET'])
+@require_auth
+def api_download_google_photo_by_id(request, user_id, image_id):
+    
+    user = User.objects.filter(id=user_id).first()
+    if not user:
+        return Response({"error": "User not found"}, status=404)
+    cloud_account_obj = CloudAccount.objects.filter(user=user, platform='google_photos').first()
+    
+    access_token = cloud_account_obj.credentials.get("access_token")
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    # Step 1: Get media item metadata
+    meta_url = f"https://photoslibrary.googleapis.com/v1/mediaItems/{image_id}"
+    meta_resp = requests.get(meta_url, headers=headers)
+
+    if meta_resp.status_code != 200:
+        print("❌ Failed to get media item info:", meta_resp.text)
+        return None
+
+    media_item = meta_resp.json()
+    base_url = media_item.get("baseUrl")
+
+    if not base_url:
+        print("❌ No baseUrl found in media item")
+        return None
+
+    # Step 2: Append =d to download the image in original quality
+    download_url = f"{base_url}=d"
+
+    # Step 3: Download image binary
+    image_resp = requests.get(download_url)
+
+    if image_resp.status_code != 200:
+        print("❌ Failed to download image:", image_resp.text)
+        return None
+
+    folder = Folder.objects.filter(owner=user, id=37)
+    img_name = "hello"
+    
+    img_content = ContentFile(image_resp.content)
+    img_model = Image(
+        user=user,
+        image_name=img_name,
+        folder=folder
+    )
+    img_model.image.save(img_name, img_content)
+    img_model.save()
+    
+    return Response({
+        "message": "Image downloaded successfully",
+        "image_id": img_model.id,
+        "image_name": img_model.image_name,
+    }, status=200)
+    
+    
+def allow_action(user_id, folder_id, action: str):
+    
+    folder = get_object_or_404(Folder, id=folder_id)
+    user = get_object_or_404(User, id=user_id)
+    if user == folder.owner:
+        return True
+    
+    folder_permission = get_object_or_404(FolderPermission, folder=folder)
+    
+    if action == 'read':
+        print ("allow action read:", user.email)
+        return user.email in folder_permission.allow_read.all()
+    elif action == 'write':
+        print ("allow action write:", user.email)
+        return user in folder_permission.allow_write.all()
+    elif action == 'delete':
+        print ("allow action delete:", user.email)
+        return user in folder_permission.allow_delete.all()
+    
+    print (f"Invalid action. allow_read: {folder_permission.allow_read.all()}, allow_write{folder_permission.allow_write.all()}, allow_delete: {folder_permission.allow_delete.all()}")
+    
+    return False  # Invalid action
+    
     

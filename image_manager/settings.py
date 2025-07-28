@@ -249,3 +249,7 @@ CELERY_TASK_SERIALIZER = 'json'
 
 
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+
+GOOGLE_CLIENT_ID= os.getenv("GOOGLE_CLIENT_ID", "default_google_client_id")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "default_google_client_secret")

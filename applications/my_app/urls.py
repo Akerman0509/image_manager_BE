@@ -23,24 +23,41 @@ urlpatterns = [
     
     
     # folder
+    ## CREATE
     path('user/<int:user_id>/folder/create/', views.api_create_folder, name='create_folder'),
+    ## CHANGE PERMISSION
     path('user/<int:user_id>/folder/<int:folder_id>/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
+    ## DELETE
+    path('user/<int:user_id>/folder/<int:folder_id>/', views.api_delete_folder, name='delete_folder'),
     
+    ## SYNC DRIVE FOLDER
+    path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
+    ### GET SYNC STATUS
+    path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
+    ### CREATE SYNC JOB (WRITE TO DB)
+    path('user/<int:user_id>/sync/folder/create_sync_job/', views.api_create_sync_job, name='api_create_sync_job'),
     
 
-    # get img
-    path('user/<int:user_id>/folder/<int:folder_id>/images/', views.api_get_images, name='get_img_list'),
+    # IMAGE
+    ## GET
+    path('user/<int:user_id>/folder/<int:folder_id>/images/', views.api_get_images, name='get_images'),
+    ## DELETE
+    path('user/<int:user_id>/folder/<int:folder_id>/image/<int:image_id>/', views.api_delete_images, name='delete_img'),
     
     
     # upload + sync
     path('user/<int:user_id>/sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
     path('user/<int:user_id>/sync/img/', views.api_sync_img, name='sync_img'),
     path('user/<int:user_id>/upload/img/', views.api_upload_image, name='upload_img'),
-    path('user/<int:user_id>/image/<int:image_id>/', views.api_delete_image, name='delete_img'),
+    
+    
+    # renew gg token
+    path('user/<int:user_id>/renew_gg_token/', views.api_renew_gg_token, name='renew_gg_token'),
 
     
-    # sync drive folder
-    path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
-    path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
-    path('user/<int:user_id>/sync/folder/create_sync_job/', views.api_create_sync_job, name='api_create_sync_job'),
+    
+    # gg photo flow
+    
+    path('user/<int:user_id>/gg_photo/<str:image_id>/', views.api_download_google_photo_by_id, name='download_gg_photo'),
+
 ]

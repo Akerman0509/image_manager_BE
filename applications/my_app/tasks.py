@@ -4,11 +4,40 @@ import requests
 from django.core.files.base import ContentFile
 from applications.my_app.models import Image, Folder, User,CloudAccount
 
+def get_folder_diff(existing_files, drive_files):
+    # Map existing images by drive_image_id
+    existing_map = {img.drive_image_id: img for img in existing_files}
+    seen_drive_ids = set()
+
+    to_add = []
+    to_delete = []
+    to_rename = []
+
+    for drive_file in drive_files:
+        file_id = drive_file['id']
+        file_name = drive_file['name']
+        seen_drive_ids.add(file_id)
+
+        if file_id not in existing_map:
+            # New file to add
+            to_add.append(drive_file)
+        else:
+            # File exists, check if name has changed
+            existing_img = existing_map[file_id]
+            if existing_img.image_name != file_name:
+                to_rename.append((existing_img, file_name))
+
+    # Images in DB but not in Drive = to delete
+    to_delete = [img for img in existing_files if img.drive_image_id not in seen_drive_ids]
+
+    return to_add, to_delete, to_rename
+
+
 @shared_task
-def sync_drive_folder_task (user_id,  drive_folder_id, access_token):
+def sync_drive_folder_task (user_id,  drive_folder_id, parent_folder_id, access_token):
     print (f"Starting sync for user_id: {user_id} with drive folder: {drive_folder_id}")
     print (f"Access token: {access_token}")
-
+    print (f"Parent folder ID: {parent_folder_id}")
     try:
         
         user = User.objects.get(id=user_id)
@@ -24,11 +53,8 @@ def sync_drive_folder_task (user_id,  drive_folder_id, access_token):
         meta_response = requests.get(metadata_url, headers=headers, params=metadata_params)
         meta_response.raise_for_status()
         folder_metadata = meta_response.json()
-
         folder_name = folder_metadata.get('name', f"Drive-folder-{drive_folder_id}")
-
-        parent_folder = Folder.objects.filter(owner=user, drive_folder_id=drive_folder_id).first()
-
+        parent_folder = Folder.objects.filter(owner=user, id=parent_folder_id).first()
         #Get or create Folder
         folder, created = Folder.objects.get_or_create(
             drive_folder_id=drive_folder_id,
@@ -36,9 +62,6 @@ def sync_drive_folder_task (user_id,  drive_folder_id, access_token):
             parent =parent_folder ,
             defaults={'name': folder_name},
         )
-        # Clear existing images in this folder
-        Image.objects.filter(folder__name=folder_name).delete()
-        
         if created:
             print(f"Created new drive_folder: {folder.name} for user: {user.username}")
         else:
@@ -57,9 +80,18 @@ def sync_drive_folder_task (user_id,  drive_folder_id, access_token):
         response.raise_for_status()
         files = response.json().get('files', [])
 
-        # Step 2: Download each file
-        success_count = 0
-        for file in files:
+        # get list of drive_id of existing images in this folder
+        existing_images = Image.objects.filter(folder=folder, user=user)
+        to_add, to_delete, to_rename = get_folder_diff(existing_images, files)
+        
+        for img_obj, new_name in to_rename:
+            img_obj.image_name = new_name
+            img_obj.save()
+
+        print (f"to_add: {to_add}")
+        print (f"to_delete: {to_delete}")
+        print (f"to_rename: {to_rename}")
+        for file in to_add:
             try:
                 file_id = file['id']
                 image_name = file['name']
@@ -74,16 +106,25 @@ def sync_drive_folder_task (user_id,  drive_folder_id, access_token):
                     user=user,
                     image_name=image_name,
                     folder=folder,
+                    drive_image_id=file_id
                 )
                 img_model.image.save(image_name, img_content)
                 img_model.save()
-                success_count += 1
                 
             except Exception as e:
                 print(f"Failed to download or save file {file['name']}: {str(e)}")
                 continue
 
-        return {"message": f"Successfully synced {success_count} / {len(files)} files from folder {folder_name}"}
+        for img in to_delete:
+            try:
+                print(f"Deleting image {img.image_name} with drive ID {img.drive_image_id}")
+                img.image.delete(save=False)  # delete the file
+                img.delete()  # delete the DB entry
+            except Exception as e:
+                print(f"Failed to delete image {img.image_name}: {str(e)}")
+                continue
+
+        return {"message": f"Successfully synced files from folder {folder_name}"}
     
     except Exception as e:
         return {"error": str(e)}
@@ -108,11 +149,14 @@ def sync_image_task(user_id, drive_email, img_name, img_id, img_folder_id):
         if response.status_code != 200:
             return {"error": "Failed to download image from Google Drive"}
 
+        print (f"image_id {img_id} downloaded successfully from Google Drive--------------------------------------------------------------------------")
+        
         img_content = ContentFile(response.content)
         img_model = Image(
             user=user,
             image_name=img_name,
-            folder=folder
+            folder=folder,
+            drive_image_id=img_id
         )
         img_model.image.save(img_name, img_content)
         img_model.save()

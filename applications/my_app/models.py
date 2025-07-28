@@ -16,7 +16,7 @@ class User(models.Model):
     class AccountType(models.TextChoices):
         NORMAL = 'normal', 'Normal'
         GG_AUTH = 'gg_auth', 'gg_auth'
-            
+
 
     username = models.CharField(max_length=255)
     email = models.EmailField()
@@ -75,7 +75,8 @@ class FolderPermission(models.Model):
 class Image(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='images/', null=True, blank=True)
-    image_name = models.CharField(max_length=255, null=True, blank=True)  
+    image_name = models.CharField(max_length=255, null=True, blank=True) 
+    drive_image_id = models.CharField(max_length=255, null=True, blank=True)  # Google Drive image ID
     
     folder = models.ForeignKey(Folder, null=True, blank=True, on_delete=models.CASCADE, related_name='images')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -91,6 +92,7 @@ class Image(models.Model):
 class CloudAccount(models.Model):
     PLATFORM_CHOICES = [
         ('google_drive', 'Google Drive'),
+        ('google_photos', 'Google Photos'), 
         ('s3', 'Amazon S3'),
         ('dropbox', 'Dropbox'),
         # etc.
