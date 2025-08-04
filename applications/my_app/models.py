@@ -124,3 +124,10 @@ class CloudAccount(models.Model):
 #   "secret_access_key": "...",
 #   "session_token": "..."
 # }
+# {
+#   "access_token": "...",  // Short-lived token for API requests
+#   "refresh_token": "...", // Long-lived token to refresh access_token
+#   "expires_in": 3600,    // Expiry time in seconds
+#   "token_type": "Bearer",
+#   "scope": "https://www.googleapis.com/auth/photoslibrary"
+# }

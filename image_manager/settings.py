@@ -253,3 +253,10 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 GOOGLE_CLIENT_ID= os.getenv("GOOGLE_CLIENT_ID", "default_google_client_id")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "default_google_client_secret")
+
+# minIO
+AWS_ACCESS_KEY_ID= os.getenv("AWS_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY= os.getenv("AWS_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY")
+AWS_S3_BUCKET= os.getenv("AWS_S3_BUCKET", "AWS_S3_BUCKET")
+AWS_REGION= os.getenv("AWS_REGION", "AWS_REGION")  # Default region
+AWS_S3_ENDPOINT= os.getenv("AWS_S3_ENDPOINT", "AWS_S3_ENDPOINT")  # MinIO endpoint

@@ -165,3 +165,6 @@ def sync_image_task(user_id, drive_email, img_name, img_id, img_folder_id):
 
     except Exception as e:
         return {"error": f"Exception occurred: {str(e)}"}
+    
+    
+    

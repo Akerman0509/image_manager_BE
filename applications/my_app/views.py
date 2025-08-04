@@ -372,8 +372,7 @@ def api_home_page(request, user_id):
         return Response({"error": "User not found"}, status=404)
     
     folders = Folder.objects.filter(owner=user)
-    # take out folder id and folder_name
-    folder_dicts = [{'id': folder.id, 'name': folder.name} for folder in folders]
+    serializer = FolderSerializer(folders, many=True)
     
     images = Image.objects.filter(folder__isnull=True)
 
@@ -387,7 +386,7 @@ def api_home_page(request, user_id):
         })
     res = {
         'user_id': user_id,
-        'folders': folder_dicts,
+        'folders': serializer.data,
         'images': image_list,
     }
     return Response(res, status=200)
