@@ -40,7 +40,7 @@ class Folder(models.Model):
     name = models.CharField(max_length=255)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='subfolders')
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='folders')
-    drive_folder_id = models.CharField(max_length=255, null=True, blank=True)  # Google Drive folder ID
+    external_folder_id = models.CharField(max_length=255, null=True, blank=True)  # Google Drive folder ID
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -76,7 +76,7 @@ class Image(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='images/', null=True, blank=True)
     image_name = models.CharField(max_length=255, null=True, blank=True) 
-    drive_image_id = models.CharField(max_length=255, null=True, blank=True)  # Google Drive image ID
+    external_img_id = models.CharField(max_length=255, null=True, blank=True)  # Google Drive image ID
     
     folder = models.ForeignKey(Folder, null=True, blank=True, on_delete=models.CASCADE, related_name='images')
     created_at = models.DateTimeField(auto_now_add=True)

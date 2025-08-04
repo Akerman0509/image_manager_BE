@@ -32,6 +32,8 @@ urlpatterns = [
     
     ## SYNC DRIVE FOLDER
     path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
+    ## SYNC MINIO FOLDER
+    path('user/<int:user_id>/sync/minio/folder/', views.api_sync_minIO_folder, name='sync_minIO_folder'),
 
     ### GET SYNC STATUS
     path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),

@@ -15,7 +15,7 @@ from django_celery_beat.models import PeriodicTask, IntervalSchedule
 import json
 from applications.my_app.decorator import require_auth
 
-from applications.my_app.tasks import sync_drive_folder_task,gg_drive_sync_task,minIO_sync_task
+from applications.my_app.tasks import gg_drive_sync_folder_task,gg_drive_sync_task,minIO_sync_task,minIO_sync_folder_task
 from celery.result import AsyncResult
 
 from django.shortcuts import get_object_or_404
@@ -426,26 +426,6 @@ def api_get_shared_folders(request, user_id):
     return Response(res, status=200)
 
 
-@api_view(['POST'])
-@require_auth
-def api_sync_drive_folder(request, user_id):
-    """
-    API để đảo ngược chuỗi
-    """
-    try:
-        drive_folder_id = request.data.get('drive_folder_id', '')
-        parent_folder_id = request.data.get('parent_folder_id', '')
-        user = User.objects.filter(id=user_id).first()
-        drive_acc_obj = CloudAccount.objects.filter(user=user).first()
-        access_token = drive_acc_obj.credentials.get('access_token', '')
-        
-        # Call the reverse task
-        result = sync_drive_folder_task.delay(user_id, drive_folder_id, parent_folder_id,  access_token)
-        
-        return Response({"task_id": result.id, "status": f"Folder:[{drive_folder_id}] sync task started for user_id {user_id}"}, status=202)
-    except Exception as e:
-        print("Error syncing drive folder:", str(e))
-        return Response({"error": f"{str(e)}"}, status=500)
 
 
 @api_view(['GET'])
@@ -698,4 +678,43 @@ def api_sync_minIO_image(request, user_id):
         return Response({"task_id": result.id, "status": f"MinIO Sync task started for user_id {user_id}"}, status=202)
     except Exception as e:
         print("Error MinIO Sync:", str(e))
+        return Response({"error": f"{str(e)}"}, status=500)
+
+
+@api_view(['POST'])
+@require_auth
+def api_sync_drive_folder(request, user_id):
+    """
+    API để đảo ngược chuỗi
+    """
+    try:
+        drive_folder_id = request.data.get('drive_folder_id', '')
+        parent_folder_id = request.data.get('parent_folder_id', '')
+        user = User.objects.filter(id=user_id).first()
+        drive_acc_obj = CloudAccount.objects.filter(user=user).first()
+        access_token = drive_acc_obj.credentials.get('access_token', '')
+        
+        # Call the reverse task
+        result = gg_drive_sync_folder_task.delay(user_id, drive_folder_id, parent_folder_id,  access_token)
+        
+        return Response({"task_id": result.id, "status": f"Folder:[{drive_folder_id}] sync task started for user_id {user_id}"}, status=202)
+    except Exception as e:
+        print("Error syncing drive folder:", str(e))
+        return Response({"error": f"{str(e)}"}, status=500)
+
+@api_view(['POST'])
+def api_sync_minIO_folder(request, user_id):
+    try:
+        parent_folder_id = request.data.get('parent_folder_id', '')
+        folder_key = request.data.get('folder_key', '')
+        bucket_name = request.data.get('bucket_name', 'actiup-internship')
+        
+        if not folder_key:
+            return Response({"error": "folder_key is required"}, status=400)
+        
+        result = minIO_sync_folder_task.delay(user_id, parent_folder_id, folder_key, bucket_name)
+        return Response({"task_id": result.id, "status": f"MinIO folder sync task started for user_id {user_id}"}, status=202)
+        
+    except Exception as e:
+        print("Error syncing MinIO folder:", str(e))
         return Response({"error": f"{str(e)}"}, status=500)
