@@ -32,6 +32,7 @@ urlpatterns = [
     
     ## SYNC DRIVE FOLDER
     path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
+
     ### GET SYNC STATUS
     path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
     ### CREATE SYNC JOB (WRITE TO DB)
@@ -45,10 +46,11 @@ urlpatterns = [
     path('user/<int:user_id>/folder/<int:folder_id>/image/<int:image_id>/', views.api_delete_images, name='delete_img'),
     
     
-    # upload + sync
+    # upload
     path('user/<int:user_id>/sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
-    path('user/<int:user_id>/sync/img/', views.api_sync_img, name='sync_img'),
     path('user/<int:user_id>/upload/img/', views.api_upload_image, name='upload_img'),
+    # SYNC MINIO
+    path('user/<int:user_id>/sync/img/', views.api_sync_img, name='sync_img'),
     
     
     # renew gg token

@@ -4,6 +4,8 @@ import requests
 from django.core.files.base import ContentFile
 from applications.my_app.models import Image, Folder, User,CloudAccount
 
+from applications.commons.utils import get_miniIO_client  # Assuming you have a utility function to get MinIO client
+
 def get_folder_diff(existing_files, drive_files):
     # Map existing images by drive_image_id
     existing_map = {img.drive_image_id: img for img in existing_files}
@@ -131,7 +133,7 @@ def sync_drive_folder_task (user_id,  drive_folder_id, parent_folder_id, access_
 
 
 @shared_task
-def sync_image_task(user_id, drive_email, img_name, img_id, img_folder_id):
+def gg_drive_sync_task(user_id, drive_email, img_name, img_id, img_folder_id):
     try:
         user = User.objects.get(id=user_id)
         folder = Folder.objects.filter(id=img_folder_id).first()
@@ -141,6 +143,8 @@ def sync_image_task(user_id, drive_email, img_name, img_id, img_folder_id):
             return {"error": "Drive account not found"}
 
         access_token = drive_account.credentials.get("access_token")
+        print ("-------------------- access_token--------------------")
+        print (access_token)
 
         drive_url = f"https://www.googleapis.com/drive/v3/files/{img_id}?alt=media"
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -168,3 +172,38 @@ def sync_image_task(user_id, drive_email, img_name, img_id, img_folder_id):
     
     
     
+@shared_task
+def minIO_sync_task(user_id,img_folder_id, img_key , bucket_name = 'actiup-internship'):
+    try:
+        user = User.objects.get(id=user_id)
+        folder = Folder.objects.filter(id=img_folder_id).first()
+
+        # Assuming you have a function to get the MinIO client
+        minio_client = get_miniIO_client()  # Replace with your actual MinIO client retrieval logic
+
+        # Upload image to MinIO
+        presigned_url = minio_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': img_key},
+            ExpiresIn=86400  # 24 hours
+        )
+        
+        response = requests.get(presigned_url)
+        if response.status_code != 200:
+            return {"error": "Failed to download image from MinIO"}
+        
+        image_name = img_key.split('/')[-1]  # Extract the image name from the key
+        
+        img_content = ContentFile(response.content)
+        img_model = Image(
+            user=user,
+            image_name=image_name,
+            folder=folder
+        )
+        img_model.image.save(image_name, img_content)
+        img_model.save()
+
+        return {"message": "Image synced to MinIO successfully"}
+
+    except Exception as e:
+        return {"error": f"Exception occurred: {str(e)}"}

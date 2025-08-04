@@ -17,11 +17,12 @@ def check_password(plain_password: str, hashed_password: str) -> bool:
 
 
 
-
-miniIO_client = boto3.client(
-    's3',
-    aws_access_key_id= settings.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key= settings.AWS_SECRET_ACCESS_KEY,
-    endpoint_url= settings.AWS_S3_ENDPOINT,
-    region_name= settings.AWS_REGION
-)
+def get_miniIO_client():
+    
+    return boto3.client(
+        's3',
+        aws_access_key_id= settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key= settings.AWS_SECRET_ACCESS_KEY,
+        endpoint_url= settings.AWS_S3_ENDPOINT,
+        region_name= settings.AWS_REGION
+    )

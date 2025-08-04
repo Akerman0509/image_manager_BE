@@ -15,7 +15,7 @@ from django_celery_beat.models import PeriodicTask, IntervalSchedule
 import json
 from applications.my_app.decorator import require_auth
 
-from applications.my_app.tasks import sync_drive_folder_task,sync_image_task
+from applications.my_app.tasks import sync_drive_folder_task,gg_drive_sync_task,minIO_sync_task
 from celery.result import AsyncResult
 
 from django.shortcuts import get_object_or_404
@@ -204,27 +204,7 @@ def api_save_drive_token(request, user_id):
     return Response({'message': 'Token saved successfully'}, status=200)
 
 
-@api_view(['POST'])
-@require_auth
-def api_sync_img(request, user_id):
-    """
-    API to trigger Celery task for syncing an image from Google Drive
-    """
-    drive_email = request.data.get('drive_email')
-    img_name = request.data.get('img_name')
-    img_id = request.data.get('img_id')
-    img_folder_id = request.data.get('img_folder_id')
-    
-    if not allow_action(user_id, img_folder_id, 'write'):
-        return Response({"error": "You do not have permission to sync image to this folder"}, status=403)
 
-    # Trigger Celery task
-    task = sync_image_task.delay(user_id, drive_email, img_name, img_id, img_folder_id)
-
-    return Response({
-        "message": "Image sync task started",
-        "task_id": task.id
-    })
 
 @api_view(['POST'])
 @require_auth
@@ -661,4 +641,61 @@ def allow_action(user_id, folder_id, action: str):
     
     return False  # Invalid action
     
+
+@api_view(['POST'])
+# @require_auth
+def api_sync_img(request, user_id):
+    """
+    API to trigger Celery task for syncing images from Google Drive/ minIO
+    sync_option: ['gg_drive', 'minio', 'gg_photo']
+    """
+    sync_type = request.data.get('sync_type', None)
+    print ("Sync type received:", sync_type)
     
+    if sync_type == 'gg_drive':
+        print ("use flow sync gg drive image")
+        return api_sync_drive_img(request, user_id)
+    elif sync_type == 'minio':
+        print ("use flow sync minIO image")
+        return api_sync_minIO_image(request, user_id)
+    # elif sync_option == 'gg_photo':
+    #     image_id = request.data.get('image_id')
+    #     return api_download_google_photo_by_id(request, user_id, image_id)
+    else:
+        print ("sync_type not supported:", sync_type)
+        return Response({"error": "sync_type not supported"}, status=400)
+
+
+def api_sync_drive_img(request, user_id):
+    """
+    API to trigger Celery task for syncing an image from Google Drive
+    """
+    drive_email = request.data.get('drive_email')
+    img_name = request.data.get('img_name')
+    img_id = request.data.get('img_id')
+    img_folder_id = request.data.get('img_folder_id')
+    
+    if not allow_action(user_id, img_folder_id, 'write'):
+        return Response({"error": "You do not have permission to sync image to this folder"}, status=403)
+
+    # Trigger Celery task
+    task = gg_drive_sync_task.delay(user_id, drive_email, img_name, img_id, img_folder_id)
+
+    return Response({
+        "message": "Image sync task started",
+        "task_id": task.id
+    })
+
+def api_sync_minIO_image(request, user_id):
+    image_key = request.data.get('image_key')
+    bucket_name = request.data.get('bucket_name', 'actiup-internship')
+    folder_id = request.data.get('folder_id', None)
+    if not image_key:
+        return Response({"error": "image_key is required"}, status=400)
+    try: 
+        result = minIO_sync_task.delay(user_id, folder_id, image_key, bucket_name)
+        
+        return Response({"task_id": result.id, "status": f"MinIO Sync task started for user_id {user_id}"}, status=202)
+    except Exception as e:
+        print("Error MinIO Sync:", str(e))
+        return Response({"error": f"{str(e)}"}, status=500)
