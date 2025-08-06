@@ -60,6 +60,9 @@ SECRET_KEY=your_secret_key
 DEBUG=True
 ```
 
+> ✅ If you're using MariaDB, it works the same as MySQL for Django.  
+> ✅ Make sure your DB user has privileges to create tables and indexes.
+
 ---
 
 ## 🗃️ Step 3: Run Migrations
