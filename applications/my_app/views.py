@@ -227,7 +227,7 @@ def api_save_drive_token(request, user_id):
     
     res = {
         'message': 'Token saved successfully',
-        'acccess_token': access_token,
+        'access_token': access_token,
         'drive_email': email
     }
     
