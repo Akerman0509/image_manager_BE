@@ -84,6 +84,25 @@ def api_login(request):
     }, status=200)
 
 
+def extract_gg_token(auth_code):
+    token_url = 'https://oauth2.googleapis.com/token'
+    token_data = {
+        'code': auth_code,
+        'client_id': settings.GOOGLE_CLIENT_ID,
+        'client_secret': settings.GOOGLE_CLIENT_SECRET,
+        'redirect_uri': "/",
+        'grant_type': 'authorization_code'
+    }
+    token_response = requests.post(token_url, data=token_data)
+    if token_response.status_code != 200:
+        print("Token exchange failed:", token_response.json())
+        return Response({'error': 'Failed to exchange auth code for token'}, status=400)
+
+    token_json = token_response.json()
+    access_token = token_json.get('access_token')
+    refresh_token = token_json.get('refresh_token') 
+    return access_token, refresh_token
+
 @api_view(['POST'])
 def api_login_with_gg(request):
     access_token = request.data.get('access_token')
@@ -443,48 +462,8 @@ def api_get_task_status(request, user_id, task_id):
         return Response({"status": task_result.state})
     
 
-@api_view(['GET'])
-@require_auth
-def api_renew_gg_token(request, user_id):
-    user = User.objects.filter(id=user_id).first()
-    if not user:
-        return Response({"error": "User not found"}, status=404)
 
-    cloud_account_obj = CloudAccount.objects.filter(user=user, platform='google_drive').first()
-    if not cloud_account_obj:
-        return Response({"error": "Cloud account not found"}, status=404)
 
-    refresh_token = cloud_account_obj.credentials.get('refresh_token', '')
-    if not refresh_token:
-        return Response({"error": "Refresh token missing"}, status=400)
-
-    client_id = settings.GOOGLE_CLIENT_ID
-    client_secret = settings.GOOGLE_CLIENT_SECRET
-
-    token_url = "https://oauth2.googleapis.com/token"
-    data = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token"
-    }
-
-    response = requests.post(token_url, data=data)
-
-    if response.status_code != 200:
-        return Response({"error": "Failed to renew access token"}, status=500)
-
-    new_tokens = response.json()
-    new_access_token = new_tokens.get("access_token")
-
-    # Update the stored access_token in credentials
-    credentials = cloud_account_obj.credentials
-    credentials["access_token"] = new_access_token
-    credentials["expires_in"] = new_tokens.get("expires_in")  # Optional
-    cloud_account_obj.credentials = credentials
-    cloud_account_obj.save()
-
-    return Response({"access_token": new_access_token, "expires_in": new_tokens.get("expires_in")})
 
 
 @api_view(['POST'])

@@ -56,7 +56,7 @@ urlpatterns = [
     
     
     # renew gg token
-    path('user/<int:user_id>/renew_gg_token/', views.api_renew_gg_token, name='renew_gg_token'),
+    # path('user/<int:user_id>/renew_gg_token/', views.api_renew_gg_token, name='renew_gg_token'),
 
     
     
