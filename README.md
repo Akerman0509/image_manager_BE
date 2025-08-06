@@ -1,4 +1,16 @@
-# Backend Server Setup Guide
+# 🖼️ Image Manager - Backend
+
+This is the backend server for **Image Manager**, a system that allows users to:
+
+- 📤 Upload and manage images
+- 📁 Share folders with other users
+- 🔄 Sync individual images or entire folders from cloud storage (e.g., Google Drive)
+- 👤 Support **one account connected to multiple cloud drives**
+
+Built with Django, Celery, Redis, and Docker for high scalability and asynchronous task processing.
+
+
+# Setup Guide
 
 This guide helps you set up and run the backend server for the project.
 
