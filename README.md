@@ -68,7 +68,7 @@ DEBUG=True
 ## 🗃️ Step 3: Run Migrations
 
 ```bash
-python manage.py makemigrations
+python manage.py makemigrations my_app
 python manage.py migrate
 ```
 
