@@ -225,7 +225,13 @@ def api_save_drive_token(request, user_id):
         print ("Error saving token:", str(e))
         return Response({'error': 'Failed to save token'}, status=500)
     
-    return Response({'message': 'Token saved successfully'}, status=200)
+    res = {
+        'message': 'Token saved successfully',
+        'acccess_token': access_token,
+        'drive_email': email
+    }
+    
+    return Response(res, status=200)
 
 
 
