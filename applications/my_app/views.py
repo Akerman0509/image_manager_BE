@@ -83,26 +83,6 @@ def api_login(request):
         'token': token
     }, status=200)
 
-
-def extract_gg_token(auth_code):
-    token_url = 'https://oauth2.googleapis.com/token'
-    token_data = {
-        'code': auth_code,
-        'client_id': settings.GOOGLE_CLIENT_ID,
-        'client_secret': settings.GOOGLE_CLIENT_SECRET,
-        'redirect_uri': "/",
-        'grant_type': 'authorization_code'
-    }
-    token_response = requests.post(token_url, data=token_data)
-    if token_response.status_code != 200:
-        print("Token exchange failed:", token_response.json())
-        return Response({'error': 'Failed to exchange auth code for token'}, status=400)
-
-    token_json = token_response.json()
-    access_token = token_json.get('access_token')
-    refresh_token = token_json.get('refresh_token') 
-    return access_token, refresh_token
-
 @api_view(['POST'])
 def api_login_with_gg(request):
     access_token = request.data.get('access_token')
@@ -178,7 +158,25 @@ def api_create_folder(request, user_id):
     else:
         return Response(serializer.errors, status=400)
     
-    
+
+def extract_gg_token(auth_code):
+    token_url = 'https://oauth2.googleapis.com/token'
+    token_data = {
+        'code': auth_code,
+        'client_id': settings.GOOGLE_CLIENT_ID,
+        'client_secret': settings.GOOGLE_CLIENT_SECRET,
+        'redirect_uri': "postmessage",
+        'grant_type': 'authorization_code'
+    }
+    token_response = requests.post(token_url, data=token_data)
+    if token_response.status_code != 200:
+        print("Token exchange failed:", token_response.json())
+        return Response({'error': 'Failed to exchange auth code for token'}, status=400)
+
+    token_json = token_response.json()
+    access_token = token_json.get('access_token')
+    refresh_token = token_json.get('refresh_token') 
+    return access_token, refresh_token
     
     
 @api_view(['POST'])
@@ -187,22 +185,29 @@ def api_save_drive_token(request, user_id):
     """
     API để lưu token Google Drive
     """
-    
     print ("Saving Google Drive token with data:", request.data)
     try :
-        token = request.data.get('access_token')
-        email = request.data.get('drive_email')
-        refresh_token = request.data.get('refresh_token')
-        
+        auth_code = request.data.get('code')
         user = User.objects.filter(id=user_id).first()
         
+        access_token, refresh_token = extract_gg_token(auth_code)
         
-        drive_account = CloudAccount.objects.filter(user=user).first()
         credentials = {
-            "access_token": token,
+            "access_token": access_token,
             "refresh_token":refresh_token
         }
-        
+        # take out email from access token
+        headers = {"Authorization": f"Bearer {access_token}"}
+        google_response = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", headers=headers)
+
+        if google_response.status_code != 200:
+            print ("Google response error:", google_response.json())
+            return Response({'error': 'Invalid Google access token'}, status=400)
+
+        google_data = google_response.json()
+        email = google_data.get('email')
+        # create CloudAccount object
+        drive_account = CloudAccount.objects.filter(user=user, platform='google_drive').first()
         if not drive_account:
             print ("Creating new DriveAccount for user:", user.username)
             drive_account = CloudAccount.objects.create(
