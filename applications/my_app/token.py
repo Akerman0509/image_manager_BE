@@ -9,14 +9,14 @@ from Crypto.Util.Padding import pad,unpad
 
 class AuthenticationToken(object):
     def __init__(self, user_id:str , expired_at: int, email:str):
-        self.sub = str(user_id)
+        self.user_id = str(user_id)
         self.expired_at = datetime.datetime.now() + datetime.timedelta(seconds=expired_at)
         self.email = email
         
     @property
     def token(self):
         payload = {
-            "sub": self.sub,
+            "sub": self.user_id,
             "exp": int(self.expired_at.timestamp()),
             "email": self.email   
         }

@@ -19,7 +19,7 @@ def require_auth(view_func):
 
         # Inject auth_user into request
         request.auth_user = auth_user
-        return view_func(request, *args, **kwargs)
+        return view_func(request ,*args, **kwargs)
 
     return _wrapped_view
 

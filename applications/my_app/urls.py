@@ -17,23 +17,23 @@ urlpatterns = [
     
     # /user
     re_path('user/(?P<user_id>[-\w\d]+)/detail/$', views.api_get_user_info, name='user_info'),
-    path('user/<int:user_id>/home/', views.api_home_page, name='home'),
+    path('user/home/', views.api_home_page, name='home'),
     
-    path('user/<str:user_id>/shared/', views.api_get_shared_folders, name='shared'),
+    path('user/shared/', views.api_get_shared_folders, name='shared'),
     
     
     # folder
     ## CREATE
-    path('user/<int:user_id>/folder/create/', views.api_create_folder, name='create_folder'),
+    path('user/folder/create/', views.api_create_folder, name='create_folder'),
     ## CHANGE PERMISSION
-    path('user/<int:user_id>/folder/<int:folder_id>/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
+    path('user/folder/<int:folder_id>/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
     ## DELETE
-    path('user/<int:user_id>/folder/<int:folder_id>/', views.api_delete_folder, name='delete_folder'),
+    path('user/folder/<int:folder_id>/', views.api_delete_folder, name='delete_folder'),
     
     ## SYNC DRIVE FOLDER
-    path('user/<int:user_id>/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
+    path('user/sync/folder/', views.api_sync_drive_folder, name='sync_drive_folder'),
     ## SYNC MINIO FOLDER
-    path('user/<int:user_id>/sync/minio/folder/', views.api_sync_minIO_folder, name='sync_minIO_folder'),
+    path('user/sync/minio/folder/', views.api_sync_minIO_folder, name='sync_minIO_folder'),
 
     ### GET SYNC STATUS
     path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
@@ -43,16 +43,16 @@ urlpatterns = [
 
     # IMAGE
     ## GET
-    path('user/<int:user_id>/folder/<int:folder_id>/images/', views.api_get_images, name='get_images'),
+    path('user/folder/<int:folder_id>/images/', views.api_get_images, name='get_images'),
     ## DELETE
-    path('user/<int:user_id>/folder/<int:folder_id>/image/<int:image_id>/', views.api_delete_images, name='delete_img'),
+    path('user/folder/<int:folder_id>/image/<int:image_id>/', views.api_delete_images, name='delete_img'),
     
     
     # upload
-    path('user/<int:user_id>/sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
-    path('user/<int:user_id>/upload/img/', views.api_upload_image, name='upload_img'),
+    path('user/sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
+    path('user/upload/img/', views.api_upload_image, name='upload_img'),
     # SYNC MINIO
-    path('user/<int:user_id>/sync/img/', views.api_sync_img, name='sync_img'),
+    path('user/sync/img/', views.api_sync_img, name='sync_img'),
     
     
     # renew gg token

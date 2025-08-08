@@ -80,7 +80,7 @@ def gg_drive_sync_folder_task (user_id,  drive_folder_id, parent_folder_id, acce
         parent_folder = Folder.objects.filter(owner=user, id=parent_folder_id).first()
         #Get or create Folder
         folder, created = Folder.objects.get_or_create(
-            external_img_id=drive_folder_id,
+            external_folder_id=drive_folder_id,
             owner=user,
             parent =parent_folder ,
             defaults={'name': folder_name},
@@ -129,7 +129,7 @@ def gg_drive_sync_folder_task (user_id,  drive_folder_id, parent_folder_id, acce
                     user=user,
                     image_name=image_name,
                     folder=folder,
-                    drive_image_id=file_id
+                    external_img_id=file_id
                 )
                 img_model.image.save(image_name, img_content)
                 img_model.save()
@@ -235,8 +235,8 @@ def gg_drive_sync_task(user_id, drive_email, img_name, img_id, img_folder_id):
             return {"error": "Drive account not found"}
 
         access_token = drive_account.credentials.get("access_token")
-        print ("-------------------- access_token--------------------")
-        print (access_token)
+        # print ("-------------------- access_token--------------------")
+        # print (access_token)
 
         drive_url = f"https://www.googleapis.com/drive/v3/files/{img_id}?alt=media"
         headers = {"Authorization": f"Bearer {access_token}"}

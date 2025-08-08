@@ -21,13 +21,6 @@ from celery.result import AsyncResult
 from django.shortcuts import get_object_or_404
 # Create your views here.
 
-
-# class GoogleLogin(SocialLoginView):
-#     adapter_class = GoogleOAuth2Adapter
-#     callback_url = 'http://localhost:3000/callback' # Your frontend callback URL
-#     client_class = OAuth2Client
-
-    
 # /auth/register
 @api_view(['POST'])
 def api_register(request):
@@ -145,7 +138,9 @@ def api_get_user_info(request, user_id):
     return Response(user_serializer.data, status=200)
     
 @api_view(['POST'])
-def api_create_folder(request, user_id):
+@require_auth
+def api_create_folder(request):
+    user_id = request.auth_user.user_id
     print ("Creating folder with data:", request.data)
     data = {
         'name': request.data.get('name'),
@@ -181,10 +176,11 @@ def extract_gg_token(auth_code):
     
 @api_view(['POST'])
 @require_auth
-def api_save_drive_token(request, user_id):
+def api_save_drive_token(request):
     """
     API để lưu token Google Drive
     """
+    user_id = request.auth_user.user_id
     print ("Saving Google Drive token with data:", request.data)
     try :
         auth_code = request.data.get('code')
@@ -213,7 +209,8 @@ def api_save_drive_token(request, user_id):
             drive_account = CloudAccount.objects.create(
                 user=user,
                 drive_email=email,
-                credentials = credentials
+                credentials = credentials,
+                platform='google_drive'
                 )
         else: 
             print ("Updating existing DriveAccount for user:", user.username)
@@ -235,11 +232,12 @@ def api_save_drive_token(request, user_id):
 
 @api_view(['POST'])
 @require_auth
-def api_upload_image(request, user_id):
+def api_upload_image(request):
     """
     API để upload ảnh lên server
     """
     try:
+        user_id = request.auth_user.user_id
         folder_id = request.data.get('folder_id')
         img_file = request.FILES.get('img_file')
         image_name = img_file.name
@@ -269,7 +267,8 @@ def api_upload_image(request, user_id):
 
 @api_view(['GET'])
 @require_auth
-def api_get_images(request, user_id, folder_id):
+def api_get_images(request, folder_id):
+    user_id = request.auth_user.user_id
     user = User.objects.filter(id=user_id).first()
     if not user:
         return Response({"error": "User not found"}, status=404)
@@ -293,7 +292,8 @@ def api_get_images(request, user_id, folder_id):
 
 @api_view(['DELETE'])
 @require_auth
-def api_delete_images(request, user_id, folder_id,image_id):
+def api_delete_images(request, folder_id,image_id):
+    user_id = request.auth_user.user_id
     user = User.objects.filter(id=user_id).first()
     if not allow_action(user_id, folder_id, 'delete'):
         return Response({"error": "You do not have permission to delete this image"}, status=403)   
@@ -322,9 +322,10 @@ def api_delete_images(request, user_id, folder_id,image_id):
 # }
 @api_view(['POST'])
 @require_auth
-def api_change_folder_permission(request, user_id, folder_id):
+def api_change_folder_permission(request, folder_id):
     
     # check if folder exists
+    user_id = request.auth_user.user_id
     folder = Folder.objects.filter(id=folder_id).first()
     if not folder:
         return Response({"error": "Folder not found"}, status=404)
@@ -369,10 +370,13 @@ def api_change_folder_permission(request, user_id, folder_id):
 
 @api_view(['GET'])
 @require_auth
-def api_home_page(request, user_id):
+def api_home_page(request):
     """
     API để trả về trang chủ
     """
+    print ("User ID from auth:", request.auth_user)
+    user_id = request.auth_user.user_id 
+    
     print ("Getting home page for user:", user_id)
     user = User.objects.filter(id=user_id).first()
     if not user:
@@ -402,10 +406,11 @@ def api_home_page(request, user_id):
 
 @api_view(['DELETE'])
 @require_auth
-def api_delete_folder(request, user_id, folder_id):
+def api_delete_folder(request, folder_id):
     """
     API để xóa thư mục
     """
+    user_id = request.auth_user.user_id
     user = User.objects.filter(id=user_id).first()
     if not user:
         return Response({"error": "User not found"}, status=404)
@@ -432,10 +437,11 @@ def api_delete_folder(request, user_id, folder_id):
 # shared forlder
 @api_view(['GET'])
 @require_auth
-def api_get_shared_folders(request, user_id):
+def api_get_shared_folders(request):
     """
     API để lấy danh sách các thư mục được chia sẻ với người dùng
     """
+    user_id = request.auth_user.user_id 
     user = User.objects.filter(id=user_id).first()
     if not user:
         return Response({"error": "User not found"}, status=404)
@@ -463,7 +469,7 @@ def api_get_shared_folders(request, user_id):
 
 
 @api_view(['GET'])
-@require_auth
+# @require_auth
 def api_get_task_status(request, user_id, task_id):
     task_result = AsyncResult(task_id)
 
@@ -482,7 +488,7 @@ def api_get_task_status(request, user_id, task_id):
 
 
 @api_view(['POST'])
-@require_auth
+# @require_auth
 def api_create_sync_job(request, user_id):
     """
     Create a periodic task to sync Google Drive folder every 15 minutes
@@ -617,12 +623,13 @@ def allow_action(user_id, folder_id, action: str):
     
 
 @api_view(['POST'])
-# @require_auth
-def api_sync_img(request, user_id):
+@require_auth
+def api_sync_img(request):
     """
     API to trigger Celery task for syncing images from Google Drive/ minIO
     sync_option: ['gg_drive', 'minio', 'gg_photo']
     """
+    user_id = request.auth_user.user_id
     sync_type = request.data.get('sync_type', None)
     print ("Sync type received:", sync_type)
     
@@ -677,10 +684,11 @@ def api_sync_minIO_image(request, user_id):
 
 @api_view(['POST'])
 @require_auth
-def api_sync_drive_folder(request, user_id):
+def api_sync_drive_folder(request):
     """
     API để đảo ngược chuỗi
     """
+    user_id = request.auth_user.user_id
     try:
         drive_folder_id = request.data.get('drive_folder_id', '')
         parent_folder_id = request.data.get('parent_folder_id', '')
@@ -697,7 +705,9 @@ def api_sync_drive_folder(request, user_id):
         return Response({"error": f"{str(e)}"}, status=500)
 
 @api_view(['POST'])
-def api_sync_minIO_folder(request, user_id):
+@require_auth
+def api_sync_minIO_folder(request):
+    user_id = request.auth_user.user_id
     try:
         parent_folder_id = request.data.get('parent_folder_id', '')
         folder_key = request.data.get('folder_key', '')
