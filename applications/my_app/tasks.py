@@ -7,8 +7,8 @@ from applications.my_app.models import Image, Folder, User,CloudAccount
 from applications.commons.utils import get_miniIO_client  # Assuming you have a utility function to get MinIO client
 
 def get_folder_diff_drive(existing_files, drive_files):
-    # Map existing images by drive_image_id
-    existing_map = {img.drive_image_id: img for img in existing_files}
+    # Map existing images by external_img_id
+    existing_map = {img.external_img_id: img for img in existing_files}
     seen_drive_ids = set()
 
     to_add = []
@@ -140,7 +140,7 @@ def gg_drive_sync_folder_task (user_id,  drive_folder_id, parent_folder_id, acce
 
         for img in to_delete:
             try:
-                print(f"Deleting image {img.image_name} with drive ID {img.drive_image_id}")
+                print(f"Deleting image {img.image_name} with drive ID {img.external_img_id}")
                 img.image.delete(save=False)  # delete the file
                 img.delete()  # delete the DB entry
             except Exception as e:

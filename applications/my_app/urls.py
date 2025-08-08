@@ -13,7 +13,7 @@ urlpatterns = [
     # /auth
     path('auth/register/', views.api_register, name='register'),
     path('auth/login/', views.api_login, name='login'),
-    path ('auth/gg_login/', views.api_login_with_gg, name='login_with_gg'),
+    path ('auth/gg-login/', views.api_login_with_gg, name='login_with_gg'),
     
     # /user
     re_path('user/(?P<user_id>[-\w\d]+)/detail/$', views.api_get_user_info, name='user_info'),
@@ -26,7 +26,7 @@ urlpatterns = [
     ## CREATE
     path('user/folder/create/', views.api_create_folder, name='create_folder'),
     ## CHANGE PERMISSION
-    path('user/folder/<int:folder_id>/change_permission/', views.api_change_folder_permission, name='change_folder_permission'),
+    path('user/folder/<int:folder_id>/change-permission/', views.api_change_folder_permission, name='change_folder_permission'),
     ## DELETE
     path('user/folder/<int:folder_id>/', views.api_delete_folder, name='delete_folder'),
     
@@ -36,9 +36,9 @@ urlpatterns = [
     path('user/sync/minio/folder/', views.api_sync_minIO_folder, name='sync_minIO_folder'),
 
     ### GET SYNC STATUS
-    path('user/<int:user_id>/sync/folder/get_task_status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
+    path('user/<int:user_id>/sync/folder/get-task-status/<str:task_id>/', views.api_get_task_status, name='api_get_task_status'),
     ### CREATE SYNC JOB (WRITE TO DB)
-    path('user/<int:user_id>/sync/folder/create_sync_job/', views.api_create_sync_job, name='api_create_sync_job'),
+    path('user/<int:user_id>/sync/folder/create-sync-job/', views.api_create_sync_job, name='api_create_sync_job'),
     
 
     # IMAGE
@@ -49,7 +49,7 @@ urlpatterns = [
     
     
     # upload
-    path('user/sync/save_drive_token/', views.api_save_drive_token, name='save_drive_token'),
+    path('user/sync/save-drive-token/', views.api_save_drive_token, name='save_drive_token'),
     path('user/upload/img/', views.api_upload_image, name='upload_img'),
     # SYNC MINIO
     path('user/sync/img/', views.api_sync_img, name='sync_img'),
@@ -62,6 +62,6 @@ urlpatterns = [
     
     # gg photo flow
     
-    path('user/<int:user_id>/gg_photo/<str:image_id>/', views.api_download_google_photo_by_id, name='download_gg_photo'),
+    # path('user/<int:user_id>/gg-photo/<str:image_id>/', views.api_download_google_photo_by_id, name='download_gg_photo'),
 
 ]
