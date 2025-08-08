@@ -233,9 +233,6 @@ def api_save_drive_token(request, user_id):
     
     return Response(res, status=200)
 
-
-
-
 @api_view(['POST'])
 @require_auth
 def api_upload_image(request, user_id):
@@ -277,7 +274,7 @@ def api_get_images(request, user_id, folder_id):
     if not user:
         return Response({"error": "User not found"}, status=404)
 
-    folder = Folder.objects.filter(id=folder_id, owner=user).first()
+    folder = Folder.objects.filter(id=folder_id).first()
     if not folder:
         return Response({"error": "Folder not found"}, status=404)
 
@@ -447,7 +444,14 @@ def api_get_shared_folders(request, user_id):
     allow_write_folders = Folder.objects.filter(permission__allow_write=user).exclude(owner=user)
     
     folders = (allow_read_folders | allow_write_folders).distinct()
-    folder_dict = [{'id': folder.id, 'name': folder.name, 'owner': folder.owner.username} for folder in folders]
+    folder_dict = [{'id': folder.id, 'name': folder.name, 
+                    'owner_id': folder.owner.id,
+                    'owner_email': folder.owner.email,
+                    'owner_username': folder.owner.username
+                    } for folder in folders]
+    
+    
+    
     
     res = {
         'user_id': user_id,
