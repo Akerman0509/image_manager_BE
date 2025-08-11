@@ -45,13 +45,6 @@ class FolderAdmin(admin.ModelAdmin):
             folder.delete()  # finally delete the folder
     
 
-    
-# @admin.register(FolderPermission)
-# class FolderPermissionAdmin(admin.ModelAdmin):
-#     list_display = ('folder', 'created_at')
-#     search_fields = ('folder__name', 'user__username')
-#     ordering = ('-created_at',)
-
 @admin.register(Image)
 class ImageAdmin(admin.ModelAdmin):
     list_display = ('id','image_name', 'user__username', 'user__id', 'folder', 'created_at', 'updated_at')
@@ -63,30 +56,9 @@ class ImageAdmin(admin.ModelAdmin):
     
 @admin.register(FolderPermission)
 class FolderPermissionAdmin(admin.ModelAdmin):
-    list_display = ('folder__id','folder_name', 'read_users', 'write_users', 'delete_users', 'created_at')
+    list_display = ('folder__id', 'folder__owner__username','folder__name', 'user__username', 'allow_read', 'allow_write', 'allow_delete')
     search_fields = ('folder__name',)
     ordering = ('-created_at',)
-    
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @admin.display(description='Folder Name')
-    def folder_name(self, obj):
-        return obj.folder.name if obj.folder else "No Folder"
-
-    @admin.display(description='Read Users')
-    def read_users(self, obj):
-        return ", ".join(user.email for user in obj.allow_read.all())
-
-    @admin.display(description='Write Users')
-    def write_users(self, obj):
-        return ", ".join(user.email for user in obj.allow_write.all())
-
-    @admin.display(description='Delete Users')
-    def delete_users(self, obj):
-        return ", ".join(user.email for user in obj.allow_delete.all())
-
 
     
     

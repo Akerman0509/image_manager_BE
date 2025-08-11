@@ -96,6 +96,12 @@ class FolderSerializer(serializers.ModelSerializer):
         )
         folder.save()
         
+        permission_record = FolderPermission.objects.create(folder=folder, user=folder.owner)
+        permission_record.allow_read = True
+        permission_record.allow_write = True
+        permission_record.allow_delete = True
+        permission_record.save()
+        
         return folder
     
     def to_representation(self, instance):

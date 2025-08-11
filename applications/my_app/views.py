@@ -141,8 +141,8 @@ def api_get_user_info(request, user_id):
 @require_auth
 def api_create_folder(request):
     
-    
     user_id = request.auth_user.user_id
+    print ("[api_create_folder] User ID from auth:", request.data)
     data = {
         'name': request.data.get('name'),
         'owner': user_id,
@@ -337,38 +337,80 @@ def api_change_folder_permission(request, folder_id):
         return Response({"error": "User not found"}, status=404)
     if folder.owner != user:
         return Response({"error": "User is not the owner of the folder"}, status=403)
-    
-    folder_permission= FolderPermission.objects.get(folder=folder.id)
-    print("Folder permission:", folder_permission)
-    
+
     # take out list
     print (request.data)
     
     allow_read_email = request.data.get('allow_read', [])
     allow_write_email = request.data.get('allow_write', [])
     allow_delete_email = request.data.get('allow_delete', [])
+    allow_read_user = User.objects.filter(email__in=allow_read_email)
+    allow_write_user = User.objects.filter(email__in=allow_write_email)
+    allow_delete_user = User.objects.filter(email__in=allow_delete_email)
+    res_folder_permission = update_folder_permission_record(
+        folder=folder,
+        allow_read=allow_read_user,
+        allow_write=allow_write_user,
+        allow_delete=allow_delete_user
+    )
     
     res = {
         "message": "Folder permissions updated successfully",
-        "folder_id": folder.id
+        "res_folder_permission": res_folder_permission,
     }
     
-    # append owner to all permissions
-    allow_read_email.append(user.email)
-    allow_write_email.append(user.email)
-    allow_delete_email.append(user.email)
-    
-    allow_read_users = User.objects.filter(email__in=allow_read_email)
-    allow_write_users = User.objects.filter(email__in=allow_write_email)
-    allow_delete_users = User.objects.filter(email__in=allow_delete_email)
-    folder_permission.allow_read.set(allow_read_users)  
-    folder_permission.allow_write.set(allow_write_users)
-    folder_permission.allow_delete.set(allow_delete_users)
-
-    
-    folder_permission.save()
-
     return Response(res, status=200)
+
+
+def update_folder_permission_record(folder, allow_read, allow_write, allow_delete):
+    """
+    Update or create folder permission record for a user
+    """
+    print ("allow read:", allow_read)
+    print ("allow write:", allow_write)
+    print ("allow delete:", allow_delete)
+    
+    results = {}
+    def record_result(target_user, created):
+        results[target_user.username] = {
+            "created": created,
+            "updated": not created
+        }
+    for read_user in allow_read:
+        obj, created = FolderPermission.objects.update_or_create(
+            folder=folder,
+            user=read_user,
+            defaults={
+                'allow_read': True,
+                'allow_write': False,
+                'allow_delete': False
+            }
+        )
+        record_result(read_user, created)
+    for write_user in allow_write:
+        obj, created = FolderPermission.objects.update_or_create(
+            folder=folder,
+            user=write_user,
+            defaults={
+                'allow_read': True,
+                'allow_write': True,
+                'allow_delete': False
+            }
+        )
+        record_result(write_user, created)
+    for delete_user in allow_delete:
+        obj, created = FolderPermission.objects.update_or_create(
+            folder=folder,
+            user=delete_user,
+            defaults={
+                'allow_read': True,
+                'allow_write': True,
+                'allow_delete': True
+            }
+        )
+        record_result(delete_user, created)
+        
+    return results
 
 @api_view(['GET'])
 @require_auth
@@ -436,6 +478,20 @@ def api_delete_folder(request, folder_id):
     return Response({"message": "Folder deleted successfully"}, status=200)
 
 
+# recursive sub folder
+def get_sub_folders(folder):
+    sub_folders = Folder.objects.filter(parent=folder)
+    return [
+        {
+            'id': sub.id,
+            'name': sub.name,
+            'owner_id': sub.owner.id,
+            'owner_email': sub.owner.email,
+            'owner_username': sub.owner.username,
+            'sub_folders': get_sub_folders(sub)  # recursive
+        }
+        for sub in sub_folders
+    ]
 # shared forlder
 @api_view(['GET'])
 @require_auth
@@ -448,22 +504,24 @@ def api_get_shared_folders(request):
     if not user:
         return Response({"error": "User not found"}, status=404)
     
-    allow_read_folders = Folder.objects.filter(permission__allow_read=user).exclude(owner=user)
-    allow_write_folders = Folder.objects.filter(permission__allow_write=user).exclude(owner=user)
+    allow_read_folder_permission = FolderPermission.objects.filter(user=user).exclude(folder__owner=user)
+    folder_ids = [obj.folder.id for obj in allow_read_folder_permission]
+    folders = Folder.objects.filter(id__in=folder_ids)
     
-    folders = (allow_read_folders | allow_write_folders).distinct()
-    folder_dict = [{'id': folder.id, 'name': folder.name, 
-                    'owner_id': folder.owner.id,
-                    'owner_email': folder.owner.email,
-                    'owner_username': folder.owner.username
-                    } for folder in folders]
-    
-    
-    
-    
+    folder_list = [
+        {
+            'id': folder.id,
+            'name': folder.name,
+            'owner_id': folder.owner.id,
+            'owner_email': folder.owner.email,
+            'owner_username': folder.owner.username,
+            'sub_folders': get_sub_folders(folder)
+        }
+        for folder in folders
+    ]
     res = {
         'user_id': user_id,
-        'shared_folders': folder_dict,
+        'shared_folders': folder_list,
     }
     return Response(res, status=200)
 
@@ -607,22 +665,17 @@ def allow_action(user_id, folder_id, action: str):
     if user == folder.owner:
         return True
     
-    folder_permission = get_object_or_404(FolderPermission, folder=folder)
-    
+    folder_permission = FolderPermission.objects.filter(folder=folder, user=user)
+    if not folder_permission:
+        return False
     if action == 'read':
-        print ("allow action read:", user.email)
-        return user.email in folder_permission.allow_read.all()
+        return folder_permission.allow_read
     elif action == 'write':
-        print ("allow action write:", user.email)
-        return user in folder_permission.allow_write.all()
+        return folder_permission.allow_write
     elif action == 'delete':
-        print ("allow action delete:", user.email)
-        return user in folder_permission.allow_delete.all()
-    
-    print (f"Invalid action. allow_read: {folder_permission.allow_read.all()}, allow_write{folder_permission.allow_write.all()}, allow_delete: {folder_permission.allow_delete.all()}")
-    
-    return False  # Invalid action
-    
+        return folder_permission.allow_delete
+
+    return False 
 
 @api_view(['POST'])
 @require_auth
