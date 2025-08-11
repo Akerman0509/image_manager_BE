@@ -32,16 +32,24 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     'localhost',
-    '127.0.0.1'
+    '127.0.0.1',
+    'fed9c652be93.ngrok-free.app'
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://fed9c652be93.ngrok-free.app"
 ]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # frontend origin
-    "http://127.0.0.1:5173"
+    "http://127.0.0.1:5173",
+    'https://fed9c652be93.ngrok-free.app',
+    'https://fed9c652be93.ngrok-free.app:5173',  # frontend origin
 ]
 
+
 CORS_ALLOW_HEADERS = list(default_headers) + [
-    "Authorization",
+    # "Authorization",
 ]
 
 CORS_ALLOW_METHODS = list(default_methods) + [
@@ -174,7 +182,7 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
 STATIC_URL = "/static/"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 STATICFILES_DIRS = (

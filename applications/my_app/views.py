@@ -140,11 +140,13 @@ def api_get_user_info(request, user_id):
 @api_view(['POST'])
 @require_auth
 def api_create_folder(request):
+    
+    
     user_id = request.auth_user.user_id
-    print ("Creating folder with data:", request.data)
     data = {
         'name': request.data.get('name'),
         'owner': user_id,
+        'parent': request.data.get('parent', None)  # Có thể là ID của thư mục cha
     }
     serializer = FolderSerializer(data=data)
     if serializer.is_valid():
