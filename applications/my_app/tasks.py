@@ -298,3 +298,6 @@ def minIO_sync_task(user_id,img_folder_id, img_key , bucket_name = 'actiup-inter
 
     except Exception as e:
         return {"error": f"Exception occurred: {str(e)}"}
+    
+    
+    

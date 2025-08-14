@@ -4,7 +4,7 @@ import requests
 from rest_framework.decorators import api_view
 from applications.my_app.serializers import RegisterSerializer, LoginSerializer, UserSerializer, FolderSerializer
 from applications.my_app.models import User, CloudAccount, Image, Folder, FolderPermission
-from applications.commons.utils import check_password
+from applications.commons.utils import check_password,renew_gg_token, check_google_token,extract_gg_token
 from applications.my_app.token import AuthenticationToken
 from applications.commons.exception import APIWarningException
 from applications.commons.log_lib import APIResponse, trace_api
@@ -156,25 +156,7 @@ def api_create_folder(request):
         return Response(serializer.errors, status=400)
     
 
-def extract_gg_token(auth_code):
-    token_url = 'https://oauth2.googleapis.com/token'
-    token_data = {
-        'code': auth_code,
-        'client_id': settings.GOOGLE_CLIENT_ID,
-        'client_secret': settings.GOOGLE_CLIENT_SECRET,
-        'redirect_uri': "postmessage",
-        'grant_type': 'authorization_code'
-    }
-    token_response = requests.post(token_url, data=token_data)
-    if token_response.status_code != 200:
-        print("Token exchange failed:", token_response.json())
-        return Response({'error': 'Failed to exchange auth code for token'}, status=400)
 
-    token_json = token_response.json()
-    access_token = token_json.get('access_token')
-    refresh_token = token_json.get('refresh_token') 
-    return access_token, refresh_token
-    
     
 @api_view(['POST'])
 @require_auth
@@ -526,8 +508,6 @@ def api_get_shared_folders(request):
     return Response(res, status=200)
 
 
-
-
 @api_view(['GET'])
 # @require_auth
 def api_get_task_status(request, user_id, task_id):
@@ -777,3 +757,33 @@ def api_sync_minIO_folder(request):
     except Exception as e:
         print("Error syncing MinIO folder:", str(e))
         return Response({"error": f"{str(e)}"}, status=500)
+    
+    
+
+
+@api_view(['GET'])
+@require_auth
+def api_get_drive_access_token(request):
+    """
+    API to get Google Drive access token
+    """
+    user_id = request.auth_user.user_id
+    
+    cloud_obj = CloudAccount.objects.filter(user__id=user_id, platform='google_drive').first()
+    if not cloud_obj:
+        return Response({"error": "Google Drive account not found"}, status=404)
+    access_token = cloud_obj.credentials.get('access_token', None)
+    if not access_token:
+        return Response({"error": "Access token not found"}, status=404)
+    
+    if check_google_token(access_token) is False:
+        print ("[api_get_drive_access_token] Access token is invalid, renewing...")
+        access_token = renew_gg_token(user_id)
+        CloudAccount.objects.filter(user__id=user_id, platform='google_drive').update(
+            credentials={
+                "access_token": access_token,
+                "refresh_token": cloud_obj.credentials.get('refresh_token', None)
+            }
+        )
+    return Response({"access_token": access_token}, status=200)
+
